@@ -1,5 +1,6 @@
 package org.gotson.komga.infrastructure.jooq.main
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.gotson.komga.domain.model.AlternateTitle
 import org.gotson.komga.domain.model.SeriesMetadata
 import org.gotson.komga.domain.model.WebLink
@@ -16,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional
 import java.net.URI
 import java.time.LocalDateTime
 import java.time.ZoneId
+
+private val logger = KotlinLogging.logger {}
 
 @Component
 class SeriesMetadataDao(
@@ -110,6 +113,7 @@ class SeriesMetadataDao(
 
   @Transactional
   override fun update(metadata: SeriesMetadata) {
+    logger.debug { "Updating series metadata: $metadata" }
     dsl.update(d)
       .set(d.STATUS, metadata.status.toString())
       .set(d.TITLE, metadata.title)

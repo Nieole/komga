@@ -12,4 +12,7 @@ data class SeriesMetadataPatch(
   val genres: Set<String>?,
   val totalBookCount: Int?,
   val collections: Set<String>,
+  val tags: Set<String>? = emptySet(),
+  val links: List<WebLink>? = emptyList(),
+  val alternateTitles: List<AlternateTitle>? = emptyList(),
 )

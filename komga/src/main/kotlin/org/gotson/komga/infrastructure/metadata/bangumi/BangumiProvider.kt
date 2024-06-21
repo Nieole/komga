@@ -78,8 +78,8 @@ class BangumiProvider(
         ?.let {
           logger.debug { "Found subject $it in search result" }
           return SeriesMetadataPatch(
-            title = it.nameCn,
-            titleSort = it.nameCn,
+            title = it.name_cn,
+            titleSort = it.name_cn,
             status = null,
             summary = it.summary,
             readingDirection = SeriesMetadata.ReadingDirection.RIGHT_TO_LEFT,
@@ -89,7 +89,7 @@ class BangumiProvider(
             genres = it.platform?.let {
               setOf(it)
             },
-            totalBookCount = it.volumes ?: it.totalEpisodes,
+            totalBookCount = it.volumes ?: it.total_episodes,
             collections = emptySet(),
             tags = it.tags?.filter { it.name != null }
               ?.map { it.name!! }

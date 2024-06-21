@@ -49,9 +49,39 @@ class BangumiProvider(
   )
 
   override fun getBookMetadataFromBook(book: BookWithMedia): BookMetadataPatch? {
-    logger.info { "getBookMetadataFromBook $book" }
-//    restClient.get()
-//      .uri(searchUrl(book.book))
+    logger.debug { "getBookMetadataFromBook $book" }
+    val searchResult = restClient.get()
+      .uri(searchUrl(book.book.name))
+      .accept(MediaType.APPLICATION_JSON)
+      .retrieve()
+      .body<SearchResult>()
+    logger.info { "searchResult: $searchResult" }
+    if (searchResult != null) {
+      return searchResult.list.firstOrNull {
+        it.name == book.book.name
+      }?.let {
+        logger.debug { "Found series $it in search result" }
+        restClient.get()
+          .uri(subjectUrl(it.id))
+          .accept(MediaType.APPLICATION_JSON)
+          .retrieve()
+          .body<SubjectResult>()
+      }?.let {
+        return BookMetadataPatch(
+          title = it.name ?: it.name_cn,
+          summary = it.summary,
+          releaseDate = null,
+          authors = null,
+          links = listOf(WebLink(
+            label = "bangumi",
+            url = URI("http://bgm.tv/subject/${it.id}"),
+          )),
+          tags = it.tags?.filter { it.name != null }
+            ?.map { it.name!! }
+            ?.toSet(),
+        )
+      }
+    }
     return null
   }
 
@@ -94,11 +124,13 @@ class BangumiProvider(
             tags = it.tags?.filter { it.name != null }
               ?.map { it.name!! }
               ?.toSet(),
-            links = listOf(WebLink(
-              label = "bangumi",
-              url = URI("http://bgm.tv/subject/${it.id}")
-            )),
-            alternateTitles = null
+            links = listOf(
+              WebLink(
+                label = "bangumi",
+                url = URI("http://bgm.tv/subject/${it.id}"),
+              ),
+            ),
+            alternateTitles = null,
           )
         }
     } else {

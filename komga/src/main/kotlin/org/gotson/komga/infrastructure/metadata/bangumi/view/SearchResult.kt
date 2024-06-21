@@ -40,7 +40,7 @@ data class ListItem(
 	val name: String? = null,
 	val rank: Int? = null,
 	val id: Int,
-	val nameCn: String? = null
+  val name_cn: String? = null
 )
 
 data class Collection(

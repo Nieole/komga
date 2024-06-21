@@ -18,7 +18,7 @@ data class SubjectResult(
 	val name: String? = null,
 	val id: Int? = null,
 	val locked: Boolean? = null,
-	val name_cn: String? = null
+  val name_cn: String? = null,
 )
 
 data class TagsItem(

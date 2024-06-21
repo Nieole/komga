@@ -26,7 +26,6 @@ private val logger = KotlinLogging.logger {}
 
 @Service
 class BangumiProvider(
-  private val seriesRepository: SeriesRepository,
   private val seriesMetadataRepository: SeriesMetadataRepository,
 ) : BookMetadataProvider, SeriesMetadataProvider {
   val restClient: RestClient = RestClient.create()
@@ -55,7 +54,7 @@ class BangumiProvider(
       .accept(MediaType.APPLICATION_JSON)
       .retrieve()
       .body<SearchResult>()
-    logger.info { "searchResult: $searchResult" }
+    logger.debug { "searchResult: $searchResult" }
     if (searchResult != null) {
       return searchResult.list.firstOrNull {
         it.name == book.book.name
@@ -93,10 +92,10 @@ class BangumiProvider(
       .accept(MediaType.APPLICATION_JSON)
       .retrieve()
       .body<SearchResult>()
-    logger.info { "searchResult: $searchResult" }
+    logger.debug { "searchResult: $searchResult" }
     if (searchResult != null) {
       return searchResult.list.firstOrNull {
-        it.name == seriesMetadata.title || it.nameCn == seriesMetadata.title
+        it.name == seriesMetadata.title || it.name_cn == seriesMetadata.title
       }?.let {
         logger.debug { "Found series $it in search result" }
         restClient.get()

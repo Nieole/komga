@@ -153,8 +153,8 @@ class BangumiProvider(
     val countBracket = countBracket(title)
     val name = when(countBracket.size) {
       0 -> title
-      1 -> countBracket[1]
-      else -> countBracket[2]
+      1 -> countBracket[0]
+      else -> countBracket[1]
     }
     return ZhConverterUtil.toSimple(name)
   }

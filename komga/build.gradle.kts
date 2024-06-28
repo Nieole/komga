@@ -55,6 +55,7 @@ dependencies {
   implementation("org.springframework.session:spring-session-core")
   implementation("com.github.gotson:spring-session-caffeine:2.0.0")
   implementation("org.springframework.data:spring-data-commons")
+  implementation("com.github.houbb:opencc4j:1.8.1")
 
   kapt("org.springframework.boot:spring-boot-configuration-processor:3.2.2")
 

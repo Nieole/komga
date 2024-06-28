@@ -1,5 +1,6 @@
 package org.gotson.komga.infrastructure.metadata.bangumi
 
+import com.github.houbb.opencc4j.util.ZhConverterUtil
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.gotson.komga.domain.model.BookMetadataPatch
 import org.gotson.komga.domain.model.BookMetadataPatchCapability
@@ -11,7 +12,6 @@ import org.gotson.komga.domain.model.SeriesMetadata
 import org.gotson.komga.domain.model.SeriesMetadataPatch
 import org.gotson.komga.domain.model.WebLink
 import org.gotson.komga.domain.persistence.SeriesMetadataRepository
-import org.gotson.komga.domain.persistence.SeriesRepository
 import org.gotson.komga.infrastructure.metadata.BookMetadataProvider
 import org.gotson.komga.infrastructure.metadata.SeriesMetadataProvider
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SearchResult
@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
 import java.net.URI
+import java.util.regex.Pattern
 
 private val logger = KotlinLogging.logger {}
 
@@ -32,6 +33,8 @@ class BangumiProvider(
 
   val searchUrl: (String) -> String = { subject -> "https://api.bgm.tv/search/subject/$subject?type=1&responseGroup=small" }
   val subjectUrl: (Int) -> String = { subject -> "https://api.bgm.tv/v0/subjects/$subject" }
+  // 正则表达式匹配完整的方括号对 [内容]
+  val pattern = Pattern.compile("\\[[^]]*]")
 
   override val capabilities: Set<BookMetadataPatchCapability> = setOf(
     BookMetadataPatchCapability.TITLE,
@@ -71,10 +74,12 @@ class BangumiProvider(
           summary = it.summary,
           releaseDate = null,
           authors = null,
-          links = listOf(WebLink(
-            label = "bangumi",
-            url = URI("http://bgm.tv/subject/${it.id}"),
-          )),
+          links = listOf(
+              WebLink(
+                  label = "bangumi",
+                  url = URI("http://bgm.tv/subject/${it.id}"),
+              ),
+          ),
           tags = it.tags?.filter { it.name != null }
             ?.map { it.name!! }
             ?.toSet(),
@@ -87,15 +92,16 @@ class BangumiProvider(
   override fun getSeriesMetadata(series: Series): SeriesMetadataPatch? {
     logger.debug { "getSeriesMetadata $series" }
     val seriesMetadata = seriesMetadataRepository.findById(series.id)
+    val seriesTitle = getSeriesTitle(seriesMetadata.title)
     val searchResult = restClient.get()
-      .uri(searchUrl(seriesMetadata.title))
+      .uri(searchUrl(seriesTitle))
       .accept(MediaType.APPLICATION_JSON)
       .retrieve()
       .body<SearchResult>()
     logger.debug { "searchResult: $searchResult" }
     if (searchResult != null) {
       return searchResult.list.firstOrNull {
-        it.name == seriesMetadata.title || it.name_cn == seriesMetadata.title
+        it.name == seriesTitle || it.name_cn == seriesTitle
       }?.let {
         logger.debug { "Found series $it in search result" }
         restClient.get()
@@ -137,6 +143,31 @@ class BangumiProvider(
     }
   }
 
+  /**
+   * 提取标题
+   * 1. 不包含[]直接转换成简体
+   * 2. 只包含一个[]取出来转换成简体
+   * 3. 包含两个以上[]取第二个转换成简体
+   */
+  private fun getSeriesTitle(title: String): String {
+    val countBracket = countBracket(title)
+    val name = when(countBracket.size) {
+      0 -> title
+      1 -> countBracket[1]
+      else -> countBracket[2]
+    }
+    return ZhConverterUtil.toSimple(name)
+  }
+
+  private fun countBracket(name:String):List<String>{
+    val matcher = pattern.matcher(name)
+
+    val result = mutableListOf<String>()
+    while (matcher.find()) {
+      result.add(matcher.group(1))
+    }
+    return result
+  }
 
   override fun shouldLibraryHandlePatch(library: Library, target: MetadataPatchTarget): Boolean =
     when (target) {

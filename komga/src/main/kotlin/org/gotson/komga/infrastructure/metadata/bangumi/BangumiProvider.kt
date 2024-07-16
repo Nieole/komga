@@ -14,6 +14,7 @@ import org.gotson.komga.domain.model.WebLink
 import org.gotson.komga.domain.persistence.SeriesMetadataRepository
 import org.gotson.komga.infrastructure.metadata.BookMetadataProvider
 import org.gotson.komga.infrastructure.metadata.SeriesMetadataProvider
+import org.gotson.komga.infrastructure.metadata.bangumi.view.SameResult
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SearchResult
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SubjectResult
 import org.springframework.http.MediaType
@@ -33,6 +34,8 @@ class BangumiProvider(
 
   val searchUrl: (String) -> String = { subject -> "https://api.bgm.tv/search/subject/$subject?type=1&responseGroup=small" }
   val subjectUrl: (Int) -> String = { subject -> "https://api.bgm.tv/v0/subjects/$subject" }
+  val sameUsl: (String, String) -> String = { s1: String, s2: String -> "http://127.0.0.1:8000/sts?s1=$s1&s2=$s2" }
+
   // 正则表达式匹配完整的方括号对 [内容]
   val pattern = Pattern.compile("\\[[^]]*]")
 
@@ -52,15 +55,17 @@ class BangumiProvider(
 
   override fun getBookMetadataFromBook(book: BookWithMedia): BookMetadataPatch? {
     logger.debug { "getBookMetadataFromBook $book" }
+    val searchUrlVal = searchUrl(book.book.name)
+    logger.info { "searchUrl : $searchUrlVal" }
     val searchResult = restClient.get()
-      .uri(searchUrl(book.book.name))
+      .uri(searchUrlVal)
       .accept(MediaType.APPLICATION_JSON)
       .retrieve()
       .body<SearchResult>()
     logger.debug { "searchResult: $searchResult" }
     if (searchResult != null) {
       return searchResult.list.firstOrNull {
-        it.name == book.book.name
+        same(it.name,book.book.name)
       }?.let {
         logger.debug { "Found series $it in search result" }
         restClient.get()
@@ -75,10 +80,10 @@ class BangumiProvider(
           releaseDate = null,
           authors = null,
           links = listOf(
-              WebLink(
-                  label = "bangumi",
-                  url = URI("http://bgm.tv/subject/${it.id}"),
-              ),
+            WebLink(
+              label = "bangumi",
+              url = URI("http://bgm.tv/subject/${it.id}"),
+            ),
           ),
           tags = it.tags?.filter { it.name != null }
             ?.map { it.name!! }
@@ -93,15 +98,17 @@ class BangumiProvider(
     logger.debug { "getSeriesMetadata $series" }
     val seriesMetadata = seriesMetadataRepository.findById(series.id)
     val seriesTitle = getSeriesTitle(seriesMetadata.title)
+    val searchUrlVal = searchUrl(seriesTitle)
+    logger.info { "searchUrl : $searchUrlVal" }
     val searchResult = restClient.get()
-      .uri(searchUrl(seriesTitle))
+      .uri(searchUrlVal)
       .accept(MediaType.APPLICATION_JSON)
       .retrieve()
       .body<SearchResult>()
     logger.debug { "searchResult: $searchResult" }
     if (searchResult != null) {
       return searchResult.list.firstOrNull {
-        it.name == seriesTitle || it.name_cn == seriesTitle
+        same(it.name,seriesTitle) || same(it.name_cn, seriesTitle)
       }?.let {
         logger.debug { "Found series $it in search result" }
         restClient.get()
@@ -143,6 +150,20 @@ class BangumiProvider(
     }
   }
 
+  private fun same(s1: String?, s2: String): Boolean {
+    if (s1 == null) {
+      return false
+    }
+    val sameResult = restClient.get()
+      .uri(sameUsl(s1,s2))
+      .accept(MediaType.APPLICATION_JSON)
+      .retrieve()
+      .body<SameResult>()
+    return sameResult?.result?.first()?.let {
+      it > 0.9
+    } ?: false
+  }
+
   /**
    * 提取标题
    * 1. 不包含[]直接转换成简体
@@ -151,7 +172,7 @@ class BangumiProvider(
    */
   private fun getSeriesTitle(title: String): String {
     val countBracket = countBracket(title)
-    val name = when(countBracket.size) {
+    val name = when (countBracket.size) {
       0 -> title
       1 -> countBracket[0]
       else -> countBracket[1]
@@ -159,7 +180,7 @@ class BangumiProvider(
     return ZhConverterUtil.toSimple(name)
   }
 
-  private fun countBracket(name:String):List<String>{
+  private fun countBracket(name: String): List<String> {
     val matcher = pattern.matcher(name)
 
     val result = mutableListOf<String>()

@@ -38,7 +38,7 @@ class BangumiProvider(
   val sameUsl: (String, String) -> String = { s1: String, s2: String -> "http://127.0.0.1:8000/sts?s1=$s1&s2=$s2" }
 
   // 正则表达式匹配完整的方括号对 [内容]
-  val pattern = Pattern.compile("\\[.*?]")
+  val pattern = Pattern.compile("\\[(.*?)]")
 
   override val capabilities: Set<BookMetadataPatchCapability> = setOf(
     BookMetadataPatchCapability.TITLE,
@@ -122,7 +122,6 @@ class BangumiProvider(
           logger.debug { "Found subject $it in search result" }
           return SeriesMetadataPatch(
             title = it.name_cn,
-            titleSort = it.name_cn,
             status = null,
             summary = it.summary,
             readingDirection = SeriesMetadata.ReadingDirection.RIGHT_TO_LEFT,
@@ -186,7 +185,7 @@ class BangumiProvider(
 
     val result = mutableListOf<String>()
     while (matcher.find()) {
-      result.add(matcher.group())
+      result.add(matcher.group(1))
     }
     return result
   }

@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
 import java.net.URI
+import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 private val logger = KotlinLogging.logger {}
@@ -37,7 +38,7 @@ class BangumiProvider(
   val sameUsl: (String, String) -> String = { s1: String, s2: String -> "http://127.0.0.1:8000/sts?s1=$s1&s2=$s2" }
 
   // 正则表达式匹配完整的方括号对 [内容]
-  val pattern = Pattern.compile("\\[[^]]*]")
+  val pattern = Pattern.compile("\\[.*?]")
 
   override val capabilities: Set<BookMetadataPatchCapability> = setOf(
     BookMetadataPatchCapability.TITLE,
@@ -54,43 +55,43 @@ class BangumiProvider(
   )
 
   override fun getBookMetadataFromBook(book: BookWithMedia): BookMetadataPatch? {
-    logger.debug { "getBookMetadataFromBook $book" }
-    val searchUrlVal = searchUrl(book.book.name)
-    logger.info { "searchUrl : $searchUrlVal" }
-    val searchResult = restClient.get()
-      .uri(searchUrlVal)
-      .accept(MediaType.APPLICATION_JSON)
-      .retrieve()
-      .body<SearchResult>()
-    logger.debug { "searchResult: $searchResult" }
-    if (searchResult != null) {
-      return searchResult.list.firstOrNull {
-        same(it.name,book.book.name)
-      }?.let {
-        logger.debug { "Found series $it in search result" }
-        restClient.get()
-          .uri(subjectUrl(it.id))
-          .accept(MediaType.APPLICATION_JSON)
-          .retrieve()
-          .body<SubjectResult>()
-      }?.let {
-        return BookMetadataPatch(
-          title = it.name ?: it.name_cn,
-          summary = it.summary,
-          releaseDate = null,
-          authors = null,
-          links = listOf(
-            WebLink(
-              label = "bangumi",
-              url = URI("http://bgm.tv/subject/${it.id}"),
-            ),
-          ),
-          tags = it.tags?.filter { it.name != null }
-            ?.map { it.name!! }
-            ?.toSet(),
-        )
-      }
-    }
+//    logger.debug { "getBookMetadataFromBook $book" }
+//    val searchUrlVal = searchUrl(book.book.name)
+//    logger.info { "searchUrl : $searchUrlVal" }
+//    val searchResult = restClient.get()
+//      .uri(searchUrlVal)
+//      .accept(MediaType.APPLICATION_JSON)
+//      .retrieve()
+//      .body<SearchResult>()
+//    logger.debug { "searchResult: $searchResult" }
+//    if (searchResult != null) {
+//      return searchResult.list.firstOrNull {
+//        same(it.name,book.book.name)
+//      }?.let {
+//        logger.debug { "Found series $it in search result" }
+//        restClient.get()
+//          .uri(subjectUrl(it.id))
+//          .accept(MediaType.APPLICATION_JSON)
+//          .retrieve()
+//          .body<SubjectResult>()
+//      }?.let {
+//        return BookMetadataPatch(
+//          title = it.name ?: it.name_cn,
+//          summary = it.summary,
+//          releaseDate = null,
+//          authors = null,
+//          links = listOf(
+//            WebLink(
+//              label = "bangumi",
+//              url = URI("http://bgm.tv/subject/${it.id}"),
+//            ),
+//          ),
+//          tags = it.tags?.filter { it.name != null }
+//            ?.map { it.name!! }
+//            ?.toSet(),
+//        )
+//      }
+//    }
     return null
   }
 
@@ -185,7 +186,7 @@ class BangumiProvider(
 
     val result = mutableListOf<String>()
     while (matcher.find()) {
-      result.add(matcher.group(1))
+      result.add(matcher.group())
     }
     return result
   }

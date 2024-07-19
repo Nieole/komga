@@ -68,142 +68,272 @@ class FileSystemScanner(
     if (!(Files.isDirectory(root) && Files.isReadable(root)))
       throw DirectoryNotFoundException("Folder is not accessible: $root", "ERR_1016")
 
-    val scannedSeries = mutableMapOf<Series, List<Book>>()
+    var scannedSeries = mutableMapOf<Series, List<Book>>()
     val scannedSidecars = mutableListOf<Sidecar>()
 
     measureTime {
-      // path is the series directory
-      val pathToSeries = mutableMapOf<Path, Series>()
-      val pathToSeriesSidecars = mutableMapOf<Path, MutableList<Sidecar>>()
-      // path is the book's parent directory, ie the series directory
-      val pathToBooks = mutableMapOf<Path, MutableList<Book>>()
-      val pathToBookSidecars = mutableMapOf<Path, MutableList<TempSidecar>>()
-
-      Files.walkFileTree(
-        root,
-        setOf(FileVisitOption.FOLLOW_LINKS),
-        Integer.MAX_VALUE,
-        object : FileVisitor<Path> {
-          override fun preVisitDirectory(
-            dir: Path,
-            attrs: BasicFileAttributes,
-          ): FileVisitResult {
-            logger.trace { "preVisit: $dir (regularFile:${attrs.isRegularFile}, directory:${attrs.isDirectory}, symbolicLink:${attrs.isSymbolicLink}, other:${attrs.isOther})" }
-            if (dir.name.startsWith(".") ||
+      Files.newDirectoryStream(root).use { directoryStream ->
+        scannedSeries = directoryStream
+          .filterNot {
+            it.name.startsWith(".") ||
               directoryExclusions.any { exclude ->
-                dir.pathString.contains(exclude, true)
+                it.pathString.contains(exclude, true)
               }
+          }
+          .fold(scannedSeries) { result, path ->
+            val attrs = path.readAttributes<BasicFileAttributes>()
+            val series = Series(
+              name = path.name.ifBlank { path.pathString },
+              url = path.toUri().toURL(),
+              fileLastModified = attrs.getUpdatedTime(),
             )
-              return FileVisitResult.SKIP_SUBTREE
+            val books = mutableListOf<Book>()
 
-            pathToSeries[dir] =
-              Series(
-                name = dir.name.ifBlank { dir.pathString },
-                url = dir.toUri().toURL(),
-                fileLastModified = attrs.getUpdatedTime(),
-              )
+            val pathToSeriesSidecars = mutableMapOf<Path, MutableList<Sidecar>>()
+            val pathToBookSidecars = mutableMapOf<Path, MutableList<TempSidecar>>()
 
-            return FileVisitResult.CONTINUE
-          }
-
-          override fun visitFile(
-            file: Path,
-            attrs: BasicFileAttributes,
-          ): FileVisitResult {
-            logger.trace { "visitFile: $file (regularFile:${attrs.isRegularFile}, directory:${attrs.isDirectory}, symbolicLink:${attrs.isSymbolicLink}, other:${attrs.isOther})" }
-            if (!attrs.isSymbolicLink && !attrs.isDirectory) {
-              if (scanForExtensions.contains(file.extension.lowercase()) &&
-                !file.name.startsWith(".")
-              ) {
-                val book = pathToBook(file, attrs)
-                file.parent.let { key ->
-                  pathToBooks.merge(key, mutableListOf(book)) { prev, one -> prev.union(one).toMutableList() }
+            Files.walkFileTree(
+              path,
+              setOf(FileVisitOption.FOLLOW_LINKS),
+              Integer.MAX_VALUE,
+              object : FileVisitor<Path> {
+                override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
+                  logger.trace { "preVisit: $dir (regularFile:${attrs.isRegularFile}, directory:${attrs.isDirectory}, symbolicLink:${attrs.isSymbolicLink}, other:${attrs.isOther})" }
+                  if (dir.name.startsWith(".") ||
+                    directoryExclusions.any { exclude ->
+                      dir.pathString.contains(exclude, true)
+                    }
+                  )
+                    return FileVisitResult.SKIP_SUBTREE
+                  return FileVisitResult.CONTINUE
                 }
-              }
 
-              sidecarSeriesConsumers.firstOrNull { consumer ->
-                consumer.getSidecarSeriesFilenames().any { file.name.equals(it, ignoreCase = true) }
-              }?.let {
-                val sidecar = Sidecar(file.toUri().toURL(), file.parent.toUri().toURL(), attrs.getUpdatedTime(), it.getSidecarSeriesType(), Sidecar.Source.SERIES)
-                pathToSeriesSidecars.merge(file.parent, mutableListOf(sidecar)) { prev, one -> prev.union(one).toMutableList() }
-              }
+                override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                  logger.trace { "visitFile: $file (regularFile:${attrs.isRegularFile}, directory:${attrs.isDirectory}, symbolicLink:${attrs.isSymbolicLink}, other:${attrs.isOther})" }
+                  if (!attrs.isSymbolicLink && !attrs.isDirectory) {
+                    if (scanForExtensions.contains(file.extension.lowercase()) &&
+                      !file.name.startsWith(".")
+                    ) {
+                      val book = pathToBook(file, attrs)
+                      books.add(book)
+                    }
 
-              // book sidecars can't be exactly matched during a file visit
-              // this prefilters files to reduce the candidates
-              if (sidecarBookPrefilter.any { it.matches(file.name) }) {
-                val sidecar = TempSidecar(file.name, file.toUri().toURL(), attrs.getUpdatedTime())
-                pathToBookSidecars.merge(file.parent, mutableListOf(sidecar)) { prev, one -> prev.union(one).toMutableList() }
-              }
-            }
+                    sidecarSeriesConsumers.firstOrNull { consumer ->
+                      consumer.getSidecarSeriesFilenames().any { file.name.equals(it, ignoreCase = true) }
+                    }?.let {
+                      val sidecar = Sidecar(file.toUri().toURL(), file.parent.toUri().toURL(), attrs.getUpdatedTime(), it.getSidecarSeriesType(), Sidecar.Source.SERIES)
+                      pathToSeriesSidecars.merge(file.parent, mutableListOf(sidecar)) { prev, one -> prev.union(one).toMutableList() }
+                    }
 
-            return FileVisitResult.CONTINUE
-          }
+                    // book sidecars can't be exactly matched during a file visit
+                    // this prefilters files to reduce the candidates
+                    if (sidecarBookPrefilter.any { it.matches(file.name) }) {
+                      val sidecar = TempSidecar(file.name, file.toUri().toURL(), attrs.getUpdatedTime())
+                      pathToBookSidecars.merge(file.parent, mutableListOf(sidecar)) { prev, one -> prev.union(one).toMutableList() }
+                    }
+                  }
 
-          override fun visitFileFailed(
-            file: Path?,
-            exc: IOException?,
-          ): FileVisitResult {
-            logger.warn { "Could not access: $file" }
-            return FileVisitResult.SKIP_SUBTREE
-          }
-
-          override fun postVisitDirectory(
-            dir: Path,
-            exc: IOException?,
-          ): FileVisitResult {
-            logger.trace { "postVisit: $dir" }
-            val books = pathToBooks[dir]
-            val tempSeries = pathToSeries[dir]
-            if (!books.isNullOrEmpty() && tempSeries !== null) {
-              if (!oneshotsDir.isNullOrBlank() && dir.pathString.contains(oneshotsDir, true)) {
-                books.forEach { book ->
-                  val series =
-                    Series(
-                      name = book.name,
-                      url = book.url,
-                      fileLastModified = book.fileLastModified,
-                      oneshot = true,
-                    )
-                  scannedSeries[series] = listOf(book.copy(oneshot = true))
+                  return FileVisitResult.CONTINUE
                 }
-              } else {
-                val series =
-                  if (forceDirectoryModifiedTime)
-                    tempSeries.copy(fileLastModified = maxOf(tempSeries.fileLastModified, books.maxOf { it.fileLastModified }))
-                  else
-                    tempSeries
 
-                scannedSeries[series] = books
+                override fun visitFileFailed(file: Path?, exc: IOException?): FileVisitResult {
+                  logger.warn { "Could not access: $file" }
+                  return FileVisitResult.SKIP_SUBTREE
+                }
 
-                // only add series sidecars if series has books
-                pathToSeriesSidecars[dir]?.let { scannedSidecars.addAll(it) }
-              }
-
-              // book sidecars are matched here, with the actual list of books
-              books.forEach { book ->
-                val sidecars =
-                  pathToBookSidecars[dir]
-                    ?.mapNotNull { sidecar ->
-                      sidecarBookConsumers.firstOrNull { it.isSidecarBookMatch(book.name, sidecar.name) }?.let {
-                        sidecar to it.getSidecarBookType()
+                override fun postVisitDirectory(dir: Path, exc: IOException?): FileVisitResult {
+                  logger.trace { "postVisit: $dir" }
+                  val tempSeries = series
+                  if (!books.isNullOrEmpty() && tempSeries !== null) {
+                    if (!oneshotsDir.isNullOrBlank() && dir.pathString.contains(oneshotsDir, true)) {
+                      books.forEach { book ->
+                        val onesSeries =
+                          Series(
+                            name = book.name,
+                            url = book.url,
+                            fileLastModified = book.fileLastModified,
+                            oneshot = true,
+                          )
+                        scannedSeries[onesSeries] = listOf(book.copy(oneshot = true))
                       }
-                    }?.toMap() ?: emptyMap()
-                pathToBookSidecars[dir]?.minusAssign(sidecars.keys)
+                    } else {
+                      val series =
+                        if (forceDirectoryModifiedTime)
+                          tempSeries.copy(fileLastModified = maxOf(tempSeries.fileLastModified, books.maxOf { it.fileLastModified }))
+                        else
+                          tempSeries
 
-                sidecars.mapTo(scannedSidecars) { (sidecar, type) ->
-                  Sidecar(sidecar.url, book.url, sidecar.lastModifiedTime, type, Sidecar.Source.BOOK)
+                      scannedSeries[series] = books
+
+                      // only add series sidecars if series has books
+                      pathToSeriesSidecars[dir]?.let { scannedSidecars.addAll(it) }
+                    }
+
+                    // book sidecars are matched here, with the actual list of books
+                    books.forEach { book ->
+                      val sidecars =
+                        pathToBookSidecars[dir]
+                          ?.mapNotNull { sidecar ->
+                            sidecarBookConsumers.firstOrNull { it.isSidecarBookMatch(book.name, sidecar.name) }?.let {
+                              sidecar to it.getSidecarBookType()
+                            }
+                          }?.toMap() ?: emptyMap()
+                      pathToBookSidecars[dir]?.minusAssign(sidecars.keys)
+
+                      sidecars.mapTo(scannedSidecars) { (sidecar, type) ->
+                        Sidecar(sidecar.url, book.url, sidecar.lastModifiedTime, type, Sidecar.Source.BOOK)
+                      }
+                    }
+                  }
+
+
+                  return FileVisitResult.CONTINUE
                 }
-              }
-            }
+              },
+            )
 
-            return FileVisitResult.CONTINUE
+            result[series] = books
+            result
           }
-        },
-      )
+      }
     }.also {
       val countOfBooks = scannedSeries.values.sumOf { it.size }
       logger.info { "Scanned ${scannedSeries.size} series, $countOfBooks books, and ${scannedSidecars.size} sidecars in $it" }
     }
+
+//    measureTime {
+//      // path is the series directory
+//      val pathToSeries = mutableMapOf<Path, Series>()
+//      val pathToSeriesSidecars = mutableMapOf<Path, MutableList<Sidecar>>()
+//      // path is the book's parent directory, ie the series directory
+//      val pathToBooks = mutableMapOf<Path, MutableList<Book>>()
+//      val pathToBookSidecars = mutableMapOf<Path, MutableList<TempSidecar>>()
+//
+//      Files.walkFileTree(
+//        root,
+//        setOf(FileVisitOption.FOLLOW_LINKS),
+//        Integer.MAX_VALUE,
+//        object : FileVisitor<Path> {
+//          override fun preVisitDirectory(
+//            dir: Path,
+//            attrs: BasicFileAttributes,
+//          ): FileVisitResult {
+//            logger.trace { "preVisit: $dir (regularFile:${attrs.isRegularFile}, directory:${attrs.isDirectory}, symbolicLink:${attrs.isSymbolicLink}, other:${attrs.isOther})" }
+//            if (dir.name.startsWith(".") ||
+//              directoryExclusions.any { exclude ->
+//                dir.pathString.contains(exclude, true)
+//              }
+//            )
+//              return FileVisitResult.SKIP_SUBTREE
+//
+//            pathToSeries[dir] =
+//              Series(
+//                name = dir.name.ifBlank { dir.pathString },
+//                url = dir.toUri().toURL(),
+//                fileLastModified = attrs.getUpdatedTime(),
+//              )
+//
+//            return FileVisitResult.CONTINUE
+//          }
+//
+//          override fun visitFile(
+//            file: Path,
+//            attrs: BasicFileAttributes,
+//          ): FileVisitResult {
+//            logger.trace { "visitFile: $file (regularFile:${attrs.isRegularFile}, directory:${attrs.isDirectory}, symbolicLink:${attrs.isSymbolicLink}, other:${attrs.isOther})" }
+//            if (!attrs.isSymbolicLink && !attrs.isDirectory) {
+//              if (scanForExtensions.contains(file.extension.lowercase()) &&
+//                !file.name.startsWith(".")
+//              ) {
+//                val book = pathToBook(file, attrs)
+//                file.parent.let { key ->
+//                  pathToBooks.merge(key, mutableListOf(book)) { prev, one -> prev.union(one).toMutableList() }
+//                }
+//              }
+//
+//              sidecarSeriesConsumers.firstOrNull { consumer ->
+//                consumer.getSidecarSeriesFilenames().any { file.name.equals(it, ignoreCase = true) }
+//              }?.let {
+//                val sidecar = Sidecar(file.toUri().toURL(), file.parent.toUri().toURL(), attrs.getUpdatedTime(), it.getSidecarSeriesType(), Sidecar.Source.SERIES)
+//                pathToSeriesSidecars.merge(file.parent, mutableListOf(sidecar)) { prev, one -> prev.union(one).toMutableList() }
+//              }
+//
+//              // book sidecars can't be exactly matched during a file visit
+//              // this prefilters files to reduce the candidates
+//              if (sidecarBookPrefilter.any { it.matches(file.name) }) {
+//                val sidecar = TempSidecar(file.name, file.toUri().toURL(), attrs.getUpdatedTime())
+//                pathToBookSidecars.merge(file.parent, mutableListOf(sidecar)) { prev, one -> prev.union(one).toMutableList() }
+//              }
+//            }
+//
+//            return FileVisitResult.CONTINUE
+//          }
+//
+//          override fun visitFileFailed(
+//            file: Path?,
+//            exc: IOException?,
+//          ): FileVisitResult {
+//            logger.warn { "Could not access: $file" }
+//            return FileVisitResult.SKIP_SUBTREE
+//          }
+//
+//          override fun postVisitDirectory(
+//            dir: Path,
+//            exc: IOException?,
+//          ): FileVisitResult {
+//            logger.trace { "postVisit: $dir" }
+//            val books = pathToBooks[dir]
+//            val tempSeries = pathToSeries[dir]
+//            if (!books.isNullOrEmpty() && tempSeries !== null) {
+//              if (!oneshotsDir.isNullOrBlank() && dir.pathString.contains(oneshotsDir, true)) {
+//                books.forEach { book ->
+//                  val series =
+//                    Series(
+//                      name = book.name,
+//                      url = book.url,
+//                      fileLastModified = book.fileLastModified,
+//                      oneshot = true,
+//                    )
+//                  scannedSeries[series] = listOf(book.copy(oneshot = true))
+//                }
+//              } else {
+//                val series =
+//                  if (forceDirectoryModifiedTime)
+//                    tempSeries.copy(fileLastModified = maxOf(tempSeries.fileLastModified, books.maxOf { it.fileLastModified }))
+//                  else
+//                    tempSeries
+//
+//                scannedSeries[series] = books
+//
+//                // only add series sidecars if series has books
+//                pathToSeriesSidecars[dir]?.let { scannedSidecars.addAll(it) }
+//              }
+//
+//              // book sidecars are matched here, with the actual list of books
+//              books.forEach { book ->
+//                val sidecars =
+//                  pathToBookSidecars[dir]
+//                    ?.mapNotNull { sidecar ->
+//                      sidecarBookConsumers.firstOrNull { it.isSidecarBookMatch(book.name, sidecar.name) }?.let {
+//                        sidecar to it.getSidecarBookType()
+//                      }
+//                    }?.toMap() ?: emptyMap()
+//                pathToBookSidecars[dir]?.minusAssign(sidecars.keys)
+//
+//                sidecars.mapTo(scannedSidecars) { (sidecar, type) ->
+//                  Sidecar(sidecar.url, book.url, sidecar.lastModifiedTime, type, Sidecar.Source.BOOK)
+//                }
+//              }
+//            }
+//
+//            return FileVisitResult.CONTINUE
+//          }
+//        },
+//      )
+//    }.also {
+//      val countOfBooks = scannedSeries.values.sumOf { it.size }
+//      logger.info { "Scanned ${scannedSeries.size} series, $countOfBooks books, and ${scannedSidecars.size} sidecars in $it" }
+//    }
 
     return ScanResult(scannedSeries, scannedSidecars)
   }

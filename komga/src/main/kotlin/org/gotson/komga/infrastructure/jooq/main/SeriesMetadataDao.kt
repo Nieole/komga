@@ -101,6 +101,8 @@ class SeriesMetadataDao(
       .set(d.TOTAL_BOOK_COUNT_LOCK, metadata.totalBookCountLock)
       .set(d.SHARING_LABELS_LOCK, metadata.sharingLabelsLock)
       .set(d.LINKS_LOCK, metadata.linksLock)
+      .set(d.SCORE, metadata.score)
+      .set(d.SCORE_LOCK, metadata.scoreLock)
       .set(d.ALTERNATE_TITLES_LOCK, metadata.alternateTitlesLock)
       .execute()
 
@@ -138,6 +140,8 @@ class SeriesMetadataDao(
       .set(d.SHARING_LABELS_LOCK, metadata.sharingLabelsLock)
       .set(d.LINKS_LOCK, metadata.linksLock)
       .set(d.ALTERNATE_TITLES_LOCK, metadata.alternateTitlesLock)
+      .set(d.SCORE, metadata.score)
+      .set(d.SCORE_LOCK, metadata.scoreLock)
       .set(d.LAST_MODIFIED_DATE, LocalDateTime.now(ZoneId.of("Z")))
       .where(d.SERIES_ID.eq(metadata.seriesId))
       .execute()
@@ -309,6 +313,8 @@ class SeriesMetadataDao(
       alternateTitlesLock = alternateTitlesLock,
       seriesId = seriesId,
       createdDate = createdDate.toCurrentTimeZone(),
+      score = score,
+      scoreLock = scoreLock,
       lastModifiedDate = lastModifiedDate.toCurrentTimeZone(),
     )
 }

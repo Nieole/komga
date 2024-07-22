@@ -460,6 +460,8 @@ class SeriesDtoDao(
       linksLock = linksLock,
       alternateTitles = alternateTitles,
       alternateTitlesLock = alternateTitlesLock,
+      score = score,
+      scoreLock = scoreLock,
     )
 
   private fun BookMetadataAggregationRecord.toDto(

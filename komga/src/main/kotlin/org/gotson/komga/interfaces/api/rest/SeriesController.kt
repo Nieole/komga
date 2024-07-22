@@ -619,6 +619,8 @@ class SeriesController(
                 existing.alternateTitles
               },
             alternateTitlesLock = alternateTitlesLock ?: existing.alternateTitlesLock,
+            score = score ?: existing.score,
+            scoreLock = scoreLock ?: existing.scoreLock,
           )
         }
       seriesMetadataRepository.update(updated)

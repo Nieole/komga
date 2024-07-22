@@ -61,6 +61,8 @@ data class SeriesMetadataDto(
   val created: LocalDateTime,
   @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
   val lastModified: LocalDateTime,
+  val score:Double?,
+  val scoreLock: Boolean,
 )
 
 data class BookMetadataAggregationDto(

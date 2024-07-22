@@ -132,7 +132,7 @@ class BangumiProvider(
             readingDirection = SeriesMetadata.ReadingDirection.RIGHT_TO_LEFT,
             publisher = null,
             ageRating = null,
-            language = null,
+            language = "中文",
             score = it.rating?.score,
             genres =
               it.platform?.let {

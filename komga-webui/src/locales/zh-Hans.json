@@ -198,6 +198,8 @@
     "books": "书籍",
     "books_n": "无书籍 | 1 本书 | {count} 本书",
     "books_total": "{count} / 共 {total} 本书",
+    "score": "{score} 分",
+    "score_n": "无评分",
     "cancel": "取消",
     "cbx": "漫画书存档",
     "choose_image": "选择图片",

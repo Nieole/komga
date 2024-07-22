@@ -22,6 +22,7 @@ export const persistedModule: Module<any, any> = {
     },
     epubreader: {},
     browsingPageSize: undefined as unknown as number,
+    browsingPage: 1,
     collection: {
       filter: {},
     },
@@ -111,6 +112,9 @@ export const persistedModule: Module<any, any> = {
     },
     setBrowsingPageSize(state, val) {
       state.browsingPageSize = val
+    },
+    setBrowsingPage(state, val) {
+      state.browsingPage = val
     },
     setCollectionFilter(state, {id, filter}) {
       state.collection.filter[id] = filter

@@ -46,6 +46,8 @@ export interface SeriesMetadataDto {
   tagsLock: boolean,
   totalBookCount?: number,
   totalBookCountLock: boolean,
+  score?: number,
+  scoreLock: boolean,
   sharingLabels: string[],
   sharingLabelsLock: boolean,
   links: WebLinkDto[],

@@ -198,6 +198,7 @@
     "books": "書籍",
     "books_n": "無書籍 | 1 本書 | {count} 本書",
     "books_total": "{count} / {total} 本書",
+    "score": "",
     "cancel": "取消",
     "cbx": "Comic Book 封存檔",
     "choose_image": "選擇圖片",

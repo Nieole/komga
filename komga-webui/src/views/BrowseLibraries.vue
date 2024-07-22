@@ -234,6 +234,7 @@ export default Vue.extend({
   async mounted() {
     this.$store.commit('setLibraryRoute', {id: this.libraryId, route: LIBRARY_ROUTE.BROWSE})
     this.pageSize = this.$store.state.persistedState.browsingPageSize || this.pageSize
+    this.page = this.$store.state.persistedState.browsingPage || this.page
 
     // restore from query param
     await this.resetParams(this.$route, this.libraryId)
@@ -464,6 +465,7 @@ export default Vue.extend({
       })
 
       this.pageUnwatch = this.$watch('page', (val) => {
+        this.$store.commit('setBrowsingPage', val)
         this.updateRoute()
         this.loadPage(this.libraryId, val, this.sortActive, this.searchRegex)
       })

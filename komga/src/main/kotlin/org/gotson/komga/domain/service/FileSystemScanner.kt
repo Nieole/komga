@@ -77,13 +77,10 @@ class FileSystemScanner(
         scannedSeries =
           directoryStream
             .filterNot {
-              it.isDirectory() &&
-                (
-                  it.name.startsWith(".") ||
+              !it.isDirectory() || it.name.startsWith(".") ||
                     directoryExclusions.any { exclude ->
                       it.pathString.contains(exclude, true)
                     }
-                )
             }
             .fold(scannedSeries) { result, path ->
               val attrs = path.readAttributes<BasicFileAttributes>()

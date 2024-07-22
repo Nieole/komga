@@ -219,7 +219,10 @@ export class SeriesItem extends Item<SeriesDto> {
       text = i18n.t('common.oneshot')
     } else
       text = i18n.tc('common.books_n', this.item.booksCount)
-    return `<div class="text-truncate" title="${title ? title : ''}">${text}</div>`
+    return `<div class="text-truncate" style="display: flex;justify-content: space-between" title="${title ? title : ''}">
+        <div>${text}</div>
+        <div>${i18n.t('common.score',{score: this.item.metadata.score})}</div>
+        </div>`
   }
 
   to(): RawLocation {

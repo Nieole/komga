@@ -55,6 +55,7 @@ class MetadataApplier {
         tags = getIfNotLocked(tags, patch.tags, tagsLock),
         links = getIfNotLocked(links, patch.links, linksLock),
         alternateTitles = getIfNotLocked(alternateTitles, patch.alternateTitles, alternateTitlesLock),
+        score = getIfNotLocked(score, patch.score, scoreLock),
       )
     }
 }

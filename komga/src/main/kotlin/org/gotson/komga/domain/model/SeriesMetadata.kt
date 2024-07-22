@@ -33,6 +33,8 @@ class SeriesMetadata(
   val linksLock: Boolean = false,
   val alternateTitlesLock: Boolean = false,
   val seriesId: String = "",
+  val score: Double? = 0.0,
+  val scoreLock: Boolean = false,
   override val createdDate: LocalDateTime = LocalDateTime.now(),
   override val lastModifiedDate: LocalDateTime = createdDate,
 ) : Auditable {
@@ -77,6 +79,8 @@ class SeriesMetadata(
     seriesId: String = this.seriesId,
     createdDate: LocalDateTime = this.createdDate,
     lastModifiedDate: LocalDateTime = this.lastModifiedDate,
+    score: Double? = this.score,
+    scoreLock: Boolean = this.scoreLock,
   ) =
     SeriesMetadata(
       status = status,
@@ -110,6 +114,8 @@ class SeriesMetadata(
       seriesId = seriesId,
       createdDate = createdDate,
       lastModifiedDate = lastModifiedDate,
+      score = score,
+      scoreLock = scoreLock,
     )
 
   enum class Status {

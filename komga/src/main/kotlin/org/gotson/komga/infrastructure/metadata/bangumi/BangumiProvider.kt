@@ -133,6 +133,7 @@ class BangumiProvider(
             publisher = null,
             ageRating = null,
             language = null,
+            score = it.rating?.score,
             genres =
               it.platform?.let {
                 setOf(it)

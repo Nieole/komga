@@ -15,4 +15,5 @@ data class SeriesMetadataPatch(
   val tags: Set<String>? = emptySet(),
   val links: List<WebLink>? = emptyList(),
   val alternateTitles: List<AlternateTitle>? = emptyList(),
+  val score: Double? = null,
 )

@@ -14,6 +14,7 @@ data class Series(
   val libraryId: String = "",
   val bookCount: Int = 0,
   val deletedDate: LocalDateTime? = null,
+  val score: Double? = 0.0,
   val oneshot: Boolean = false,
   override val createdDate: LocalDateTime = LocalDateTime.now(),
   override val lastModifiedDate: LocalDateTime = createdDate,

@@ -17,6 +17,7 @@ import org.gotson.komga.infrastructure.metadata.SeriesMetadataProvider
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SameResult
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SearchResult
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SubjectResult
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
@@ -32,10 +33,12 @@ class BangumiProvider(
   private val seriesMetadataRepository: SeriesMetadataRepository,
 ) : BookMetadataProvider, SeriesMetadataProvider {
   val restClient: RestClient = RestClient.create()
+  @Value("\${hanlp.url}")
+  lateinit var hanlpUrl:String
 
   val searchUrl: (String) -> String = { subject -> "https://api.bgm.tv/search/subject/$subject?type=1&responseGroup=small" }
   val subjectUrl: (Int) -> String = { subject -> "https://api.bgm.tv/v0/subjects/$subject" }
-  val sameUsl: (String, String) -> String = { s1: String, s2: String -> "http://127.0.0.1:8000/sts?s1=$s1&s2=$s2" }
+  val sameUsl: (String, String) -> String = { s1: String, s2: String -> "${hanlpUrl}/sts?s1=$s1&s2=$s2" }
 
   // 正则表达式匹配完整的方括号对 [内容]
   val pattern = Pattern.compile("\\[(.*?)]")

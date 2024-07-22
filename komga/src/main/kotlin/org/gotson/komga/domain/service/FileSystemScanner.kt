@@ -22,6 +22,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlin.io.path.exists
 import kotlin.io.path.extension
+import kotlin.io.path.isDirectory
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
 import kotlin.io.path.nameWithoutExtension
@@ -75,14 +76,15 @@ class FileSystemScanner(
       Files.newDirectoryStream(root).use { directoryStream ->
         scannedSeries = directoryStream
           .filterNot {
-            it.name.startsWith(".") ||
-              directoryExclusions.any { exclude ->
-                it.pathString.contains(exclude, true)
-              }
+            it.isDirectory() &&
+              (it.name.startsWith(".") ||
+                directoryExclusions.any { exclude ->
+                  it.pathString.contains(exclude, true)
+                })
           }
           .fold(scannedSeries) { result, path ->
             val attrs = path.readAttributes<BasicFileAttributes>()
-            val series = Series(
+            var series = Series(
               name = path.name.ifBlank { path.pathString },
               url = path.toUri().toURL(),
               fileLastModified = attrs.getUpdatedTime(),
@@ -144,7 +146,7 @@ class FileSystemScanner(
                 override fun postVisitDirectory(dir: Path, exc: IOException?): FileVisitResult {
                   logger.trace { "postVisit: $dir" }
                   val tempSeries = series
-                  if (!books.isNullOrEmpty() && tempSeries !== null) {
+                  if (books.isNotEmpty()) {
                     if (!oneshotsDir.isNullOrBlank() && dir.pathString.contains(oneshotsDir, true)) {
                       books.forEach { book ->
                         val onesSeries =
@@ -157,7 +159,7 @@ class FileSystemScanner(
                         scannedSeries[onesSeries] = listOf(book.copy(oneshot = true))
                       }
                     } else {
-                      val series =
+                      series =
                         if (forceDirectoryModifiedTime)
                           tempSeries.copy(fileLastModified = maxOf(tempSeries.fileLastModified, books.maxOf { it.fileLastModified }))
                         else

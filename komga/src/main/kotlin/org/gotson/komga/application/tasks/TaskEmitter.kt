@@ -163,7 +163,7 @@ class TaskEmitter(
 
   fun refreshBookMetadata(
     book: Book,
-    capabilities: Set<BookMetadataPatchCapability> = BookMetadataPatchCapability.values().toSet(),
+    capabilities: Set<BookMetadataPatchCapability> = BookMetadataPatchCapability.entries.toSet(),
     priority: Int = DEFAULT_PRIORITY,
   ) {
     submitTask(Task.RefreshBookMetadata(book.id, capabilities, priority, book.seriesId))
@@ -171,7 +171,7 @@ class TaskEmitter(
 
   fun refreshBookMetadata(
     books: Collection<Book>,
-    capabilities: Set<BookMetadataPatchCapability> = BookMetadataPatchCapability.values().toSet(),
+    capabilities: Set<BookMetadataPatchCapability> = BookMetadataPatchCapability.entries.toSet(),
     priority: Int = DEFAULT_PRIORITY,
   ) {
     books

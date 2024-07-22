@@ -53,7 +53,7 @@ class MetadataApplier {
         genres = getIfNotLocked(genres, patch.genres, genresLock),
         totalBookCount = getIfNotLocked(totalBookCount, patch.totalBookCount, totalBookCountLock),
         tags = getIfNotLocked(tags, patch.tags, tagsLock),
-        links = getIfNotLocked(links,patch.links, linksLock),
+        links = getIfNotLocked(links, patch.links, linksLock),
         alternateTitles = getIfNotLocked(alternateTitles, patch.alternateTitles, alternateTitlesLock),
       )
     }

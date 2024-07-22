@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
 import java.net.URI
-import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 private val logger = KotlinLogging.logger {}
@@ -33,29 +32,31 @@ class BangumiProvider(
   private val seriesMetadataRepository: SeriesMetadataRepository,
 ) : BookMetadataProvider, SeriesMetadataProvider {
   val restClient: RestClient = RestClient.create()
+
   @Value("\${hanlp.url}")
-  lateinit var hanlpUrl:String
+  lateinit var hanlpUrl: String
 
   val searchUrl: (String) -> String = { subject -> "https://api.bgm.tv/search/subject/$subject?type=1&responseGroup=small" }
   val subjectUrl: (Int) -> String = { subject -> "https://api.bgm.tv/v0/subjects/$subject" }
-  val sameUsl: (String, String) -> String = { s1: String, s2: String -> "${hanlpUrl}/sts?s1=$s1&s2=$s2" }
+  val sameUsl: (String, String) -> String = { s1: String, s2: String -> "$hanlpUrl/sts?s1=$s1&s2=$s2" }
 
   // 正则表达式匹配完整的方括号对 [内容]
-  val pattern = Pattern.compile("\\[(.*?)]")
+  val pattern: Pattern = Pattern.compile("\\[(.*?)]")
 
-  override val capabilities: Set<BookMetadataPatchCapability> = setOf(
-    BookMetadataPatchCapability.TITLE,
-    BookMetadataPatchCapability.SUMMARY,
-    BookMetadataPatchCapability.NUMBER,
-    BookMetadataPatchCapability.NUMBER_SORT,
-    BookMetadataPatchCapability.RELEASE_DATE,
-    BookMetadataPatchCapability.AUTHORS,
-    BookMetadataPatchCapability.TAGS,
-    BookMetadataPatchCapability.ISBN,
-    BookMetadataPatchCapability.READ_LISTS,
-    BookMetadataPatchCapability.THUMBNAILS,
-    BookMetadataPatchCapability.LINKS,
-  )
+  override val capabilities: Set<BookMetadataPatchCapability> =
+    setOf(
+      BookMetadataPatchCapability.TITLE,
+      BookMetadataPatchCapability.SUMMARY,
+      BookMetadataPatchCapability.NUMBER,
+      BookMetadataPatchCapability.NUMBER_SORT,
+      BookMetadataPatchCapability.RELEASE_DATE,
+      BookMetadataPatchCapability.AUTHORS,
+      BookMetadataPatchCapability.TAGS,
+      BookMetadataPatchCapability.ISBN,
+      BookMetadataPatchCapability.READ_LISTS,
+      BookMetadataPatchCapability.THUMBNAILS,
+      BookMetadataPatchCapability.LINKS,
+    )
 
   override fun getBookMetadataFromBook(book: BookWithMedia): BookMetadataPatch? {
 //    logger.debug { "getBookMetadataFromBook $book" }
@@ -104,15 +105,16 @@ class BangumiProvider(
     val seriesTitle = getSeriesTitle(seriesMetadata.title)
     val searchUrlVal = searchUrl(seriesTitle)
     logger.info { "searchUrl : $searchUrlVal" }
-    val searchResult = restClient.get()
-      .uri(searchUrlVal)
-      .accept(MediaType.APPLICATION_JSON)
-      .retrieve()
-      .body<SearchResult>()
+    val searchResult =
+      restClient.get()
+        .uri(searchUrlVal)
+        .accept(MediaType.APPLICATION_JSON)
+        .retrieve()
+        .body<SearchResult>()
     logger.debug { "searchResult: $searchResult" }
     if (searchResult != null) {
       return searchResult.list.firstOrNull {
-        same(it.name,seriesTitle) || same(it.name_cn, seriesTitle)
+        same(it.name, seriesTitle) || same(it.name_cn, seriesTitle)
       }?.let {
         logger.debug { "Found series $it in search result" }
         restClient.get()
@@ -131,20 +133,23 @@ class BangumiProvider(
             publisher = null,
             ageRating = null,
             language = null,
-            genres = it.platform?.let {
-              setOf(it)
-            },
+            genres =
+              it.platform?.let {
+                setOf(it)
+              },
             totalBookCount = it.volumes ?: it.total_episodes,
             collections = emptySet(),
-            tags = it.tags?.filter { it.name != null }
-              ?.map { it.name!! }
-              ?.toSet(),
-            links = listOf(
-              WebLink(
-                label = "bangumi",
-                url = URI("http://bgm.tv/subject/${it.id}"),
+            tags =
+              it.tags?.filter { it.name != null }
+                ?.map { it.name!! }
+                ?.toSet(),
+            links =
+              listOf(
+                WebLink(
+                  label = "bangumi",
+                  url = URI("http://bgm.tv/subject/${it.id}"),
+                ),
               ),
-            ),
             alternateTitles = null,
           )
         }
@@ -153,15 +158,19 @@ class BangumiProvider(
     }
   }
 
-  private fun same(s1: String?, s2: String): Boolean {
+  private fun same(
+    s1: String?,
+    s2: String,
+  ): Boolean {
     if (s1 == null) {
       return false
     }
-    val sameResult = restClient.get()
-      .uri(sameUsl(s1,s2))
-      .accept(MediaType.APPLICATION_JSON)
-      .retrieve()
-      .body<SameResult>()
+    val sameResult =
+      restClient.get()
+        .uri(sameUsl(s1, s2))
+        .accept(MediaType.APPLICATION_JSON)
+        .retrieve()
+        .body<SameResult>()
     return sameResult?.result?.first()?.let {
       it > 0.9
     } ?: false
@@ -175,11 +184,12 @@ class BangumiProvider(
    */
   private fun getSeriesTitle(title: String): String {
     val countBracket = countBracket(title)
-    val name = when (countBracket.size) {
-      0 -> title
-      1 -> countBracket[0]
-      else -> countBracket[1]
-    }
+    val name =
+      when (countBracket.size) {
+        0 -> title
+        1 -> countBracket[0]
+        else -> countBracket[1]
+      }
     return ZhConverterUtil.toSimple(name)
   }
 
@@ -193,7 +203,10 @@ class BangumiProvider(
     return result
   }
 
-  override fun shouldLibraryHandlePatch(library: Library, target: MetadataPatchTarget): Boolean =
+  override fun shouldLibraryHandlePatch(
+    library: Library,
+    target: MetadataPatchTarget,
+  ): Boolean =
     when (target) {
       MetadataPatchTarget.BOOK -> library.importComicInfoBook
       MetadataPatchTarget.SERIES -> library.importComicInfoSeries

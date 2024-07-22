@@ -10,7 +10,7 @@ enum class Manga(private val value: String) {
   ;
 
   companion object {
-    private val map = values().associateBy(Manga::value)
+    private val map = entries.associateBy(Manga::value)
 
     @JvmStatic
     @JsonCreator

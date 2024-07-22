@@ -256,6 +256,27 @@
                       </template>
                     </v-text-field>
                   </v-col>
+                  <v-col cols="6">
+                    <v-text-field v-model="form.score"
+                                  :label="$t('dialog.edit_series.field_score')"
+                                  clearable
+                                  filled
+                                  dense
+                                  type="number"
+                                  :error-messages="scoreErrors"
+                                  @input="$v.form.score.$touch()"
+                                  @blur="$v.form.score.$touch()"
+                                  @change="form.scoreLock = true"
+                    >
+                      <template v-slot:prepend>
+                        <v-icon :color="form.scoreLock ? 'secondary' : ''"
+                                @click="form.scoreLock = !form.scoreLock"
+                        >
+                          {{ form.scoreLock ? 'mdi-lock' : 'mdi-lock-open' }}
+                        </v-icon>
+                      </template>
+                    </v-text-field>
+                  </v-col>
                 </v-row>
 
               </v-container>
@@ -599,6 +620,8 @@ export default Vue.extend({
         tagsLock: false,
         totalBookCount: undefined as number | undefined,
         totalBookCountLock: false,
+        score: undefined as number | undefined,
+        scoreLock: false,
         sharingLabels: [],
         sharingLabelsLock: false,
         links: [],
@@ -677,6 +700,7 @@ export default Vue.extend({
       readingDirection: {},
       publisher: {},
       totalBookCount: {minValue: minValue(1)},
+      score: {minValue: minValue(1)},
       links: {},
       alternateTitles: {},
     },
@@ -709,6 +733,12 @@ export default Vue.extend({
       const errors = [] as string[]
       if (!this.$v.form?.totalBookCount?.$dirty) return errors
       !this.$v?.form?.totalBookCount?.minValue && errors.push(this.$t('dialog.edit_series.field_total_book_count_error').toString())
+      return errors
+    },
+    scoreErrors(): string[] {
+      const errors = [] as string[]
+      if (!this.$v.form?.score?.$dirty) return errors
+      !this.$v?.form?.score?.minValue && errors.push(this.$t('dialog.edit_series.field_total_book_count_error').toString())
       return errors
     },
     languageErrors(): string[] {
@@ -852,6 +882,7 @@ export default Vue.extend({
           genresLock: this.form.genresLock,
           tagsLock: this.form.tagsLock,
           totalBookCountLock: this.form.totalBookCountLock,
+          scoreLock: this.form.scoreLock,
           sharingLabelsLock: this.form.sharingLabelsLock,
           linksLock: this.form.linksLock,
           alternateTitlesLock: this.form.alternateTitlesLock,
@@ -895,6 +926,7 @@ export default Vue.extend({
             titleSortLock: this.form.titleSortLock,
             summaryLock: this.form.summaryLock,
             totalBookCountLock: this.form.totalBookCountLock,
+            scoreLock: this.form.scoreLock,
           })
 
           if (this.$v.form?.title?.$dirty) {
@@ -911,6 +943,10 @@ export default Vue.extend({
 
           if (this.$v.form?.totalBookCount?.$dirty) {
             this.$_.merge(metadata, {totalBookCount: this.form.totalBookCount})
+          }
+
+          if (this.$v.form?.score?.$dirty) {
+            this.$_.merge(metadata, {score: this.form.score})
           }
 
           if (this.$v.form?.links?.$dirty || this.form.links.length != (this.series as SeriesDto).metadata.links?.length) {

@@ -494,6 +494,8 @@
       "field_title": "标题",
       "field_total_book_count": "书籍总数",
       "field_total_book_count_error": "书籍总数必须为 1 或更多",
+      "field_score": "评分",
+      "field_score_error": "书籍评分必须为 1 至 10 之间",
       "mixed": "混合",
       "tab_general": "常规",
       "tab_poster": "海报",

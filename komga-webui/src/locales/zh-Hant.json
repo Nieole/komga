@@ -494,6 +494,8 @@
       "field_title": "標題",
       "field_total_book_count": "書籍總數",
       "field_total_book_count_error": "書籍總數必須為 1 或更多",
+      "field_score": "評分",
+      "field_score_error": "書籍評分必須為 1 至 10 之間",
       "mixed": "混合",
       "tab_general": "常規",
       "tab_poster": "海報",

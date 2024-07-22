@@ -494,6 +494,8 @@
       "field_title": "Título",
       "field_total_book_count": "Cantidad total de libros",
       "field_total_book_count_error": "La cantidad total de libros debe ser 1 o más",
+      "field_score": "calificación",
+      "field_score_error": "La calificación del libro debe estar entre 1 y 10",
       "mixed": "MIXTO",
       "tab_general": "General",
       "tab_poster": "Póster",

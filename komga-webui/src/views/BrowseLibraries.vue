@@ -286,6 +286,7 @@ export default Vue.extend({
         {name: this.$t('sort.release_date').toString(), key: 'booksMetadata.releaseDate'},
         {name: this.$t('sort.folder_name').toString(), key: 'name'},
         {name: this.$t('sort.books_count').toString(), key: 'booksCount'},
+        {name: this.$t('sort.score').toString(), key: 'metadata.score'},
       ] as SortOption[]
     },
     filterOptionsList(): FiltersOptions {

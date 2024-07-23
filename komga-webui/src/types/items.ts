@@ -19,6 +19,7 @@ export enum ItemContext {
   FILE_SIZE = 'FILE_SIZE',
   SHOW_SERIES = 'SHOW_SERIES',
   READ_DATE = 'READ_DATE',
+  SCORE = 'SCORE',
 }
 
 export interface ItemTitle {

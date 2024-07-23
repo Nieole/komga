@@ -100,7 +100,7 @@ class SeriesMetadataUpdateDto {
 
   var alternateTitlesLock: Boolean? = null
 
-  var score:Double? = null
+  var score: Double? = null
 
-  var scoreLock:Boolean? = null
+  var scoreLock: Boolean? = null
 }

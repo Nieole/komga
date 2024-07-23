@@ -85,6 +85,7 @@ class SeriesDtoDao(
   private val sorts =
     mapOf(
       "metadata.titleSort" to d.TITLE_SORT.noCase(),
+      "metadata.score" to d.SCORE,
       "createdDate" to s.CREATED_DATE,
       "created" to s.CREATED_DATE,
       "lastModifiedDate" to s.LAST_MODIFIED_DATE,

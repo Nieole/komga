@@ -1,3 +1,133 @@
+# [1.13.0](https://github.com/gotson/komga/compare/1.12.1...1.13.0) (2024-09-11)
+## 🚀 Features
+**kobo**
+- sync On Deck as a Kobo collection ([f07be06](https://github.com/gotson/komga/commits/f07be06))
+
+**metadata**
+- support multiple values in Web field from ComicInfo.xml ([d12f3b3](https://github.com/gotson/komga/commits/d12f3b3)), closes [#1639](https://github.com/gotson/komga/issues/1639)
+
+**webui**
+- add sort criteria for known page hash ([be4911d](https://github.com/gotson/komga/commits/be4911d)), closes [#1609](https://github.com/gotson/komga/issues/1609)
+
+## 🐛 Fixes
+
+- admin user created by claiming does not have kobo sync role ([bf8bbdd](https://github.com/gotson/komga/commits/bf8bbdd)), closes [#1686](https://github.com/gotson/komga/issues/1686)
+
+## 🏎 Perf
+**api**
+- make on deck much faster ([e72ff78](https://github.com/gotson/komga/commits/e72ff78))
+
+## 🛠  Build
+**benchmark**
+- mark some books as read for on deck ([0047a91](https://github.com/gotson/komga/commits/0047a91))
+
+## 🌐 Translation
+**komga-tray**
+- translated using Weblate (Croatian) ([b8f2cea](https://github.com/gotson/komga/commits/b8f2cea))
+
+**webui**
+- translated using Weblate (Chinese (Simplified Han script)) ([bc913ad](https://github.com/gotson/komga/commits/bc913ad))
+- translated using Weblate (Korean) ([41c93fd](https://github.com/gotson/komga/commits/41c93fd))
+- translated using Weblate (Finnish) ([026c696](https://github.com/gotson/komga/commits/026c696))
+- translated using Weblate (French) ([c725d73](https://github.com/gotson/komga/commits/c725d73))
+- translated using Weblate (Spanish) ([ffc7bc3](https://github.com/gotson/komga/commits/ffc7bc3))
+- translated using Weblate (Croatian) ([15eb9a4](https://github.com/gotson/komga/commits/15eb9a4))
+- translated using Weblate (Russian) ([8249e0f](https://github.com/gotson/komga/commits/8249e0f))
+
+# [1.12.1](https://github.com/gotson/komga/compare/1.12.0...1.12.1) (2024-09-04)
+## 🐛 Fixes
+**kobo**
+- better handling of missing port from Kobo Sync requests ([4cd838a](https://github.com/gotson/komga/commits/4cd838a))
+- use the total progression sent by Kobo ([be37127](https://github.com/gotson/komga/commits/be37127))
+- correctly propagate metadata update during kobo sync ([20e7c29](https://github.com/gotson/komga/commits/20e7c29))
+- properly store total progression on state update ([fcde9c9](https://github.com/gotson/komga/commits/fcde9c9))
+- properly mark book as read when finished on Kobo ([c3fc37a](https://github.com/gotson/komga/commits/c3fc37a))
+
+**webui**
+- only show API key copy button if clipboard is available ([4351086](https://github.com/gotson/komga/commits/4351086)), closes [#1675](https://github.com/gotson/komga/issues/1675)
+
+## 🔄️ Changes
+
+- adjust loglevel for LoginListener ([2c260b1](https://github.com/gotson/komga/commits/2c260b1))
+
+## 🛠  Build
+**webui**
+- update Browserslist db ([63e1c0c](https://github.com/gotson/komga/commits/63e1c0c))
+
+## 📝 Documentation
+
+- add kobo sync in readme ([02e8d30](https://github.com/gotson/komga/commits/02e8d30))
+
+# [1.12.0](https://github.com/gotson/komga/compare/1.11.3...1.12.0) (2024-08-29)
+## 🚀 Features
+**kobo**
+- initial Kobo Sync support ([210c7b1](https://github.com/gotson/komga/commits/210c7b1))
+- add API key support ([a4747e8](https://github.com/gotson/komga/commits/a4747e8))
+
+**metadata**
+- use group-position for epub series index ([4354581](https://github.com/gotson/komga/commits/4354581))
+
+**webui**
+- api key support ([c1e1da6](https://github.com/gotson/komga/commits/c1e1da6))
+
+## 🐛 Fixes
+**api**
+- incorrect query param name ([85a9934](https://github.com/gotson/komga/commits/85a9934)), closes [#1670](https://github.com/gotson/komga/issues/1670)
+- properly handle simple read progress for divina compatible epub ([0d19aa1](https://github.com/gotson/komga/commits/0d19aa1))
+
+## 🛠  Build
+
+- ignore conveyor steps on forks ([cefd527](https://github.com/gotson/komga/commits/cefd527))
+
+## 🌐 Translation
+**komga-tray**
+- translated using Weblate (Hungarian) ([95df315](https://github.com/gotson/komga/commits/95df315))
+
+## ⚙️ Dependencies
+**ci**
+- bump actions/checkout from 3 to 4 ([14887f5](https://github.com/gotson/komga/commits/14887f5))
+
+**webui**
+- bump webpack from 5.88.2 to 5.94.0 in /komga-webui ([f3bce23](https://github.com/gotson/komga/commits/f3bce23))
+
+# [1.11.3](https://github.com/gotson/komga/compare/1.11.2...1.11.3) (2024-08-26)
+## 🐛 Fixes
+**api**
+- some metrics are not updated ([da35140](https://github.com/gotson/komga/commits/da35140)), closes [#1643](https://github.com/gotson/komga/issues/1643)
+- known page hash cannot be sorted by file size ([bf71f8e](https://github.com/gotson/komga/commits/bf71f8e)), closes [#1610](https://github.com/gotson/komga/issues/1610)
+
+**docker**
+- broken Dockerfile ([796a4ed](https://github.com/gotson/komga/commits/796a4ed))
+
+**komga-tray**
+- libheif.dll had no avif support ([f743aae](https://github.com/gotson/komga/commits/f743aae)), closes [#1624](https://github.com/gotson/komga/issues/1624)
+
+**webui**
+- footer text displayed over book content ([6794e24](https://github.com/gotson/komga/commits/6794e24)), closes [#1489](https://github.com/gotson/komga/issues/1489)
+- auto-scroll upward does not work when dragging elements ([835bff4](https://github.com/gotson/komga/commits/835bff4)), closes [#1652](https://github.com/gotson/komga/issues/1652)
+
+## 🏎 Perf
+
+- faster zip entry extraction ([eeb5898](https://github.com/gotson/komga/commits/eeb5898))
+
+## 🔄️ Changes
+
+- better logging for sqlite pools ([6a51f34](https://github.com/gotson/komga/commits/6a51f34))
+
+## 🛠  Build
+**webui**
+- update Browserslist db ([eec2474](https://github.com/gotson/komga/commits/eec2474))
+
+**unscoped**
+- add browserlist update action ([b93459a](https://github.com/gotson/komga/commits/b93459a))
+
+## ⚙️ Dependencies
+**ci**
+- bump gradle/actions from 3 to 4 ([6482b34](https://github.com/gotson/komga/commits/6482b34))
+
+**webui**
+- bump axios from 1.6.0 to 1.7.4 in /komga-webui ([f177fab](https://github.com/gotson/komga/commits/f177fab))
+
 # [1.11.2](https://github.com/gotson/komga/compare/1.11.1...1.11.2) (2024-07-25)
 ## 🐛 Fixes
 **docker**

@@ -1,6 +1,7 @@
 package org.gotson.komga.infrastructure.metadata.bangumi
 
 import com.github.houbb.opencc4j.util.ZhConverterUtil
+import com.ibm.icu.impl.ValidIdentifiers.Datatype.language
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.gotson.komga.domain.model.BookMetadataPatch
 import org.gotson.komga.domain.model.BookMetadataPatchCapability
@@ -14,6 +15,7 @@ import org.gotson.komga.domain.model.WebLink
 import org.gotson.komga.domain.persistence.SeriesMetadataRepository
 import org.gotson.komga.infrastructure.metadata.BookMetadataProvider
 import org.gotson.komga.infrastructure.metadata.SeriesMetadataProvider
+import org.gotson.komga.infrastructure.metadata.bangumi.view.SameRequest
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SameResult
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SearchResult
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SubjectResult
@@ -30,18 +32,18 @@ private val logger = KotlinLogging.logger {}
 @Service
 class BangumiProvider(
   private val seriesMetadataRepository: SeriesMetadataRepository,
+  private val restClient: RestClient,
 ) : BookMetadataProvider, SeriesMetadataProvider {
-  val restClient: RestClient = RestClient.create()
 
   @Value("\${hanlp.url}")
   lateinit var hanlpUrl: String
 
   val searchUrl: (String) -> String = { subject -> "https://api.bgm.tv/search/subject/$subject?type=1&responseGroup=small" }
   val subjectUrl: (Int) -> String = { subject -> "https://api.bgm.tv/v0/subjects/$subject" }
-  val sameUsl: (String, String) -> String = { s1: String, s2: String -> "$hanlpUrl/sts?s1=$s1&s2=$s2" }
+  val sameUrl: (String, String) -> String = { s1: String, s2: String -> "$hanlpUrl/sts?s1=$s1&s2=$s2" }
 
   // 正则表达式匹配完整的方括号对 [内容]
-  val pattern: Pattern = Pattern.compile("\\[(.*?)]")
+//  val pattern: Pattern = Pattern.compile("\\[(.*?)]")
 
   override val capabilities: Set<BookMetadataPatchCapability> =
     setOf(
@@ -126,7 +128,7 @@ class BangumiProvider(
         ?.let {
           logger.debug { "Found subject $it in search result" }
           return SeriesMetadataPatch(
-            title = it.name_cn,
+            title = notBlankName(it.name_cn,it.name,seriesMetadata.title),
             status = null,
             summary = it.summary,
             readingDirection = SeriesMetadata.ReadingDirection.RIGHT_TO_LEFT,
@@ -167,12 +169,13 @@ class BangumiProvider(
       return false
     }
     val sameResult =
-      restClient.get()
-        .uri(sameUsl(s1, s2))
+      restClient.post()
+        .uri("$hanlpUrl/sts")
+        .body(SameRequest(s1,s2))
         .accept(MediaType.APPLICATION_JSON)
         .retrieve()
         .body<SameResult>()
-    return sameResult?.result?.first()?.let {
+    return sameResult?.result?.let {
       it > 0.9
     } ?: false
   }
@@ -183,26 +186,26 @@ class BangumiProvider(
    * 2. 只包含一个[]取出来转换成简体
    * 3. 包含两个以上[]取第二个转换成简体
    */
-  private fun getSeriesTitle(title: String): String {
-    val countBracket = countBracket(title)
-    val name =
-      when (countBracket.size) {
-        0 -> title
-        1 -> countBracket[0]
-        else -> countBracket[1]
-      }
-    return ZhConverterUtil.toSimple(name)
-  }
-
-  private fun countBracket(name: String): List<String> {
-    val matcher = pattern.matcher(name)
-
-    val result = mutableListOf<String>()
-    while (matcher.find()) {
-      result.add(matcher.group(1))
-    }
-    return result
-  }
+//  private fun getSeriesTitle(title: String): String {
+//    val countBracket = countBracket(title)
+//    val name =
+//      when (countBracket.size) {
+//        0 -> title
+//        1 -> countBracket[0]
+//        else -> countBracket[1]
+//      }
+//    return ZhConverterUtil.toSimple(name)
+//  }
+//
+//  private fun countBracket(name: String): List<String> {
+//    val matcher = pattern.matcher(name)
+//
+//    val result = mutableListOf<String>()
+//    while (matcher.find()) {
+//      result.add(matcher.group(1))
+//    }
+//    return result
+//  }
 
   override fun shouldLibraryHandlePatch(
     library: Library,

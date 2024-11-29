@@ -173,6 +173,19 @@ class BookMetadataDao(
     insertLinks(listOf(metadata))
   }
 
+  fun insertAuthors(bookId: String, authors: List<Author>) {
+    if (authors.isNotEmpty()) {
+      dsl.batch(
+        dsl.insertInto(a, a.BOOK_ID, a.NAME, a.ROLE)
+          .values(null as String?, null, null),
+      ).also { step ->
+        authors.forEach {
+          step.bind(bookId, it.name, it.role)
+        }
+      }.execute()
+    }
+  }
+
   private fun insertAuthors(metadatas: Collection<BookMetadata>) {
     if (metadatas.any { it.authors.isNotEmpty() }) {
       metadatas.chunked(batchSize).forEach { chunk ->

@@ -1,7 +1,5 @@
 package org.gotson.komga.infrastructure.metadata.bangumi
 
-import com.github.houbb.opencc4j.util.ZhConverterUtil
-import com.ibm.icu.impl.ValidIdentifiers.Datatype.language
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.gotson.komga.domain.model.BookMetadataPatch
 import org.gotson.komga.domain.model.BookMetadataPatchCapability
@@ -25,7 +23,6 @@ import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
 import java.net.URI
-import java.util.regex.Pattern
 
 private val logger = KotlinLogging.logger {}
 
@@ -179,33 +176,6 @@ class BangumiProvider(
       it > 0.9
     } ?: false
   }
-
-  /**
-   * 提取标题
-   * 1. 不包含[]直接转换成简体
-   * 2. 只包含一个[]取出来转换成简体
-   * 3. 包含两个以上[]取第二个转换成简体
-   */
-//  private fun getSeriesTitle(title: String): String {
-//    val countBracket = countBracket(title)
-//    val name =
-//      when (countBracket.size) {
-//        0 -> title
-//        1 -> countBracket[0]
-//        else -> countBracket[1]
-//      }
-//    return ZhConverterUtil.toSimple(name)
-//  }
-//
-//  private fun countBracket(name: String): List<String> {
-//    val matcher = pattern.matcher(name)
-//
-//    val result = mutableListOf<String>()
-//    while (matcher.find()) {
-//      result.add(matcher.group(1))
-//    }
-//    return result
-//  }
 
   override fun shouldLibraryHandlePatch(
     library: Library,

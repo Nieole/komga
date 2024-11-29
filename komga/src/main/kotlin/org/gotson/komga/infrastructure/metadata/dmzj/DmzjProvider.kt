@@ -1,12 +1,15 @@
 package org.gotson.komga.infrastructure.metadata.dmzj
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.gotson.komga.domain.model.Author
 import org.gotson.komga.domain.model.Library
 import org.gotson.komga.domain.model.MetadataPatchTarget
 import org.gotson.komga.domain.model.Series
 import org.gotson.komga.domain.model.SeriesMetadata
 import org.gotson.komga.domain.model.SeriesMetadataPatch
+import org.gotson.komga.domain.persistence.BookRepository
 import org.gotson.komga.domain.persistence.SeriesMetadataRepository
+import org.gotson.komga.infrastructure.jooq.main.BookMetadataDao
 import org.gotson.komga.infrastructure.metadata.SeriesMetadataProvider
 import org.gotson.komga.infrastructure.metadata.dmzj.view.DmzjComicView
 import org.springframework.beans.factory.annotation.Value
@@ -18,7 +21,9 @@ import org.springframework.web.client.body
 @Service
 class DmzjProvider(
   private val seriesMetadataRepository: SeriesMetadataRepository,
+  private val bookRepository: BookRepository,
   private val restClient: RestClient,
+  private val bookMetadataDao: BookMetadataDao,
 ) : SeriesMetadataProvider {
 
   private val logger = KotlinLogging.logger {}
@@ -37,9 +42,26 @@ class DmzjProvider(
       .retrieve()
       .body<DmzjComicView>()
       ?.let { comicView ->
+
+        var authors = comicView.authors
+          ?.filter { author -> author.name?.isNotBlank() == true }
+          ?.map { author ->
+            Author(author.name!!, "writer")
+          }
+
+        if (authors?.isNotEmpty() == true) {
+          bookRepository.findAllBySeriesId(series.id)
+            .forEach { book ->
+              var originAuthors = bookMetadataDao.findById(book.id).authors
+              bookMetadataDao.insertAuthors(book.id, authors.filter {
+                !originAuthors.contains(it)
+              })
+            }
+        }
+
         return SeriesMetadataPatch(
-          title = notBlankName(comicView.title,seriesMetadata.titleSort),
-          status = when(comicView.status){
+          title = notBlankName(comicView.title, seriesMetadata.titleSort),
+          status = when (comicView.status) {
             null -> null
             "已完结" -> SeriesMetadata.Status.ENDED
             "连载中" -> SeriesMetadata.Status.ONGOING
@@ -50,24 +72,16 @@ class DmzjProvider(
           publisher = null,
           ageRating = null,
           language = "zh-CN",
-//          score = it.rating?.score,
-//          genres =
-//            it.platform?.let {
-//              setOf(it)
-//            },
+          score = seriesMetadata.score,
+          genres = seriesMetadata.genres,
 //          totalBookCount = it.volumes ?: it.total_episodes,
 //          collections = emptySet(),
-          tags = comicView.types
-            ?.filter { it.name != null  }
-            ?.map { it.name!! }
-            ?.toSet(),
-//          links =
-//            listOf(
-//              WebLink(
-//                label = "bangumi",
-//                url = URI("http://bgm.tv/subject/${it.id}"),
-//              ),
-//            ),
+          tags = seriesMetadata.tags +
+            (comicView.types
+              ?.filter { it.name != null }
+              ?.map { it.name!! }
+              ?.toSet() ?: emptySet()),
+          links = seriesMetadata.links,
           alternateTitles = null,
         )
       }

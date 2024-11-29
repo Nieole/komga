@@ -3,7 +3,6 @@ package org.gotson.komga.infrastructure.metadata
 import com.github.houbb.opencc4j.util.ZhConverterUtil
 import org.gotson.komga.domain.model.Series
 import org.gotson.komga.domain.model.SeriesMetadataPatch
-import org.springframework.util.StringUtils
 import java.util.regex.Pattern
 
 interface SeriesMetadataProvider : MetadataProvider {
@@ -42,8 +41,8 @@ interface SeriesMetadataProvider : MetadataProvider {
 
   fun notBlankName(vararg names: String?): String{
     for (name in names){
-      if (StringUtils.hasText(name)){
-        return name!!
+      if (name?.isNotBlank() == true){
+        return name
       }
     }
     return ""

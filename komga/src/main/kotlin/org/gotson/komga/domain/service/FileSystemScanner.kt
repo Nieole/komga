@@ -359,7 +359,8 @@ class FileSystemScanner(
   fun scanBookSidecars(path: Path): List<Sidecar> {
     val bookBaseName = path.nameWithoutExtension
     val parent = path.parent
-    return parent.listDirectoryEntries()
+    return parent
+      .listDirectoryEntries()
       .filter { candidate -> sidecarBookPrefilter.any { it.matches(candidate.name) } }
       .mapNotNull { candidate ->
         sidecarBookConsumers.firstOrNull { it.isSidecarBookMatch(bookBaseName, candidate.name) }?.let {
@@ -380,8 +381,6 @@ class FileSystemScanner(
     )
 }
 
-fun BasicFileAttributes.getUpdatedTime(): LocalDateTime =
-  maxOf(creationTime(), lastModifiedTime()).toLocalDateTime()
+fun BasicFileAttributes.getUpdatedTime(): LocalDateTime = maxOf(creationTime(), lastModifiedTime()).toLocalDateTime()
 
-fun FileTime.toLocalDateTime(): LocalDateTime =
-  LocalDateTime.ofInstant(this.toInstant(), ZoneId.systemDefault())
+fun FileTime.toLocalDateTime(): LocalDateTime = LocalDateTime.ofInstant(this.toInstant(), ZoneId.systemDefault())

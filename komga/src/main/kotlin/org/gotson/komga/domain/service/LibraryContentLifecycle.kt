@@ -4,13 +4,14 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.gotson.komga.application.tasks.TaskEmitter
 import org.gotson.komga.domain.model.Book
 import org.gotson.komga.domain.model.BookMetadataPatchCapability
-import org.gotson.komga.domain.model.BookSearch
 import org.gotson.komga.domain.model.DirectoryNotFoundException
 import org.gotson.komga.domain.model.DomainEvent
 import org.gotson.komga.domain.model.Library
 import org.gotson.komga.domain.model.Media
+import org.gotson.komga.domain.model.SearchCondition
+import org.gotson.komga.domain.model.SearchContext
+import org.gotson.komga.domain.model.SearchOperator
 import org.gotson.komga.domain.model.Series
-import org.gotson.komga.domain.model.SeriesSearch
 import org.gotson.komga.domain.model.Sidecar
 import org.gotson.komga.domain.model.ThumbnailBook
 import org.gotson.komga.domain.model.ThumbnailSeries
@@ -31,6 +32,7 @@ import org.gotson.komga.infrastructure.hash.Hasher
 import org.gotson.komga.language.notEquals
 import org.gotson.komga.language.toIndexedMap
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionTemplate
 import java.nio.file.Paths
@@ -125,7 +127,11 @@ class LibraryContentLifecycle(
           if (books.isNotEmpty()) {
             logger.info { "Soft deleting books not on disk anymore: $books" }
             bookLifecycle.softDeleteMany(books)
-            books.map { it.seriesId }.distinct().mapNotNull { seriesRepository.findByIdOrNull(it) }.toMutableList()
+            books
+              .map { it.seriesId }
+              .distinct()
+              .mapNotNull { seriesRepository.findByIdOrNull(it) }
+              .toMutableList()
           } else {
             mutableListOf()
           }
@@ -279,7 +285,9 @@ class LibraryContentLifecycle(
     val bookSizes = newBooks.map { it.fileSize }
 
     val deletedCandidates =
-      seriesRepository.findAll(SeriesSearch(deleted = true))
+      seriesRepository
+        .findAll(SearchCondition.Deleted(SearchOperator.IsTrue), SearchContext.empty(), Pageable.unpaged())
+        .content
         .mapNotNull { deletedCandidate ->
           val deletedBooks = bookRepository.findAllBySeriesId(deletedCandidate.id)
           val deletedBooksSizes = deletedBooks.map { it.fileSize }
@@ -322,7 +330,8 @@ class LibraryContentLifecycle(
           }
 
           // replace deleted series by new series in collections
-          collectionRepository.findAllContainingSeriesId(match.first.id, filterOnLibraryIds = null)
+          collectionRepository
+            .findAllContainingSeriesId(match.first.id, filterOnLibraryIds = null)
             .forEach { col ->
               collectionRepository.update(
                 col.copy(
@@ -394,16 +403,21 @@ class LibraryContentLifecycle(
             }
 
             // copy read progress
-            readProgressRepository.findAllByBookId(match.id)
+            readProgressRepository
+              .findAllByBookId(match.id)
               .map { it.copy(bookId = bookToAdd.id) }
               .forEach { readProgressRepository.save(it) }
 
             // replace deleted book by new book in read lists
-            readListRepository.findAllContainingBookId(match.id, filterOnLibraryIds = null)
+            readListRepository
+              .findAllContainingBookId(match.id, filterOnLibraryIds = null)
               .forEach { rl ->
                 readListRepository.update(
                   rl.copy(
-                    bookIds = rl.bookIds.values.map { if (it == match.id) bookToAdd.id else it }.toIndexedMap(),
+                    bookIds =
+                      rl.bookIds.values
+                        .map { if (it == match.id) bookToAdd.id else it }
+                        .toIndexedMap(),
                   ),
                 )
               }
@@ -419,10 +433,28 @@ class LibraryContentLifecycle(
   fun emptyTrash(library: Library) {
     logger.info { "Empty trash for library: $library" }
 
-    val seriesToDelete = seriesRepository.findAll(SeriesSearch(libraryIds = listOf(library.id), deleted = true))
+    val seriesToDelete =
+      seriesRepository
+        .findAll(
+          SearchCondition.AllOfSeries(
+            SearchCondition.LibraryId(SearchOperator.Is(library.id)),
+            SearchCondition.Deleted(SearchOperator.IsTrue),
+          ),
+          SearchContext.empty(),
+          Pageable.unpaged(),
+        ).content
     seriesLifecycle.deleteMany(seriesToDelete)
 
-    val booksToDelete = bookRepository.findAll(BookSearch(libraryIds = listOf(library.id), deleted = true))
+    val booksToDelete =
+      bookRepository
+        .findAll(
+          SearchCondition.AllOfBook(
+            SearchCondition.LibraryId(SearchOperator.Is(library.id)),
+            SearchCondition.Deleted(SearchOperator.IsTrue),
+          ),
+          SearchContext.empty(),
+          Pageable.unpaged(),
+        ).content
     bookLifecycle.deleteMany(booksToDelete)
     booksToDelete.map { it.seriesId }.distinct().forEach { seriesId ->
       seriesRepository.findByIdOrNull(seriesId)?.let { seriesLifecycle.sortBooks(it) }

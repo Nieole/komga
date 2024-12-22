@@ -12,6 +12,7 @@ logging:
   level:
     org.apache.activemq.audit: WARN
     org.apache.fontbox.cff.Type1CharString: ERROR
+    org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
 
 komga:
   database:
@@ -23,6 +24,8 @@ komga:
     file: \${komga.config-dir}/tasks.sqlite
 
 spring:
+  codec:
+    max-in-memory-size: 10MB
   flyway:
     enabled: true
     locations: classpath:db/migration/{vendor}
@@ -76,7 +79,7 @@ management:
       roles: ADMIN
       show-details: when_authorized
     shutdown:
-      enabled: true
+      access: unrestricted
   info:
     java:
       enabled: true

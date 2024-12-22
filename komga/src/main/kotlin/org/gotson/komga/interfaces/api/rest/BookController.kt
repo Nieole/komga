@@ -12,7 +12,7 @@ import org.gotson.komga.application.tasks.HIGHEST_PRIORITY
 import org.gotson.komga.application.tasks.HIGH_PRIORITY
 import org.gotson.komga.application.tasks.LOWEST_PRIORITY
 import org.gotson.komga.application.tasks.TaskEmitter
-import org.gotson.komga.domain.model.BookSearchWithReadProgress
+import org.gotson.komga.domain.model.BookSearch
 import org.gotson.komga.domain.model.Dimension
 import org.gotson.komga.domain.model.DomainEvent
 import org.gotson.komga.domain.model.ImageConversionException
@@ -24,6 +24,9 @@ import org.gotson.komga.domain.model.MediaProfile
 import org.gotson.komga.domain.model.ROLE_ADMIN
 import org.gotson.komga.domain.model.ROLE_PAGE_STREAMING
 import org.gotson.komga.domain.model.ReadStatus
+import org.gotson.komga.domain.model.SearchCondition
+import org.gotson.komga.domain.model.SearchContext
+import org.gotson.komga.domain.model.SearchOperator
 import org.gotson.komga.domain.model.ThumbnailBook
 import org.gotson.komga.domain.persistence.BookMetadataRepository
 import org.gotson.komga.domain.persistence.BookRepository
@@ -92,6 +95,7 @@ import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
 import java.nio.file.NoSuchFileException
 import java.time.LocalDate
+import java.time.ZoneOffset
 
 private val logger = KotlinLogging.logger {}
 
@@ -148,16 +152,21 @@ class BookController(
         )
 
     val bookSearch =
-      BookSearchWithReadProgress(
-        libraryIds = principal.user.getAuthorizedLibraryIds(libraryIds),
-        searchTerm = searchTerm,
-        mediaStatus = mediaStatus,
-        readStatus = readStatus,
-        releasedAfter = releasedAfter,
-        tags = tags,
+      BookSearch(
+        SearchCondition.AllOfBook(
+          buildList {
+            if (!libraryIds.isNullOrEmpty()) add(SearchCondition.AnyOfBook(libraryIds.map { SearchCondition.LibraryId(SearchOperator.Is(it)) }))
+            if (!mediaStatus.isNullOrEmpty()) add(SearchCondition.AnyOfBook(mediaStatus.map { SearchCondition.MediaStatus(SearchOperator.Is(it)) }))
+            if (!readStatus.isNullOrEmpty()) add(SearchCondition.AnyOfBook(readStatus.map { SearchCondition.ReadStatus(SearchOperator.Is(it)) }))
+            if (!tags.isNullOrEmpty()) add(SearchCondition.AnyOfBook(tags.map { SearchCondition.Tag(SearchOperator.Is(it)) }))
+            releasedAfter?.let { add(SearchCondition.ReleaseDate(SearchOperator.After(it.atStartOfDay(ZoneOffset.UTC)))) }
+          },
+        ),
+        searchTerm,
       )
 
-    return bookDtoRepository.findAll(bookSearch, principal.user.id, pageRequest, principal.user.restrictions)
+    return bookDtoRepository
+      .findAll(bookSearch, SearchContext(principal.user), pageRequest)
       .map { it.restrictUrl(!principal.user.roleAdmin) }
   }
 
@@ -181,14 +190,11 @@ class BookController(
           sort,
         )
 
-    return bookDtoRepository.findAll(
-      BookSearchWithReadProgress(
-        libraryIds = principal.user.getAuthorizedLibraryIds(null),
-      ),
-      principal.user.id,
-      pageRequest,
-      principal.user.restrictions,
-    ).map { it.restrictUrl(!principal.user.roleAdmin) }
+    return bookDtoRepository
+      .findAll(
+        SearchContext(principal.user),
+        pageRequest,
+      ).map { it.restrictUrl(!principal.user.roleAdmin) }
   }
 
   @Operation(description = "Return first unread book of series with at least one book read and no books in progress.")
@@ -199,12 +205,13 @@ class BookController(
     @RequestParam(name = "library_id", required = false) libraryIds: List<String>? = null,
     @Parameter(hidden = true) page: Pageable,
   ): Page<BookDto> =
-    bookDtoRepository.findAllOnDeck(
-      principal.user.id,
-      principal.user.getAuthorizedLibraryIds(libraryIds),
-      page,
-      principal.user.restrictions,
-    ).map { it.restrictUrl(!principal.user.roleAdmin) }
+    bookDtoRepository
+      .findAllOnDeck(
+        principal.user.id,
+        principal.user.getAuthorizedLibraryIds(libraryIds),
+        page,
+        principal.user.restrictions,
+      ).map { it.restrictUrl(!principal.user.roleAdmin) }
 
   @PageableAsQueryParam
   @GetMapping("api/v1/books/duplicates")
@@ -251,7 +258,8 @@ class BookController(
   ): BookDto {
     contentRestrictionChecker.checkContentRestriction(principal.user, bookId)
 
-    return bookDtoRepository.findPreviousInSeriesOrNull(bookId, principal.user.id)
+    return bookDtoRepository
+      .findPreviousInSeriesOrNull(bookId, principal.user.id)
       ?.restrictUrl(!principal.user.roleAdmin)
       ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
   }
@@ -263,7 +271,8 @@ class BookController(
   ): BookDto {
     contentRestrictionChecker.checkContentRestriction(principal.user, bookId)
 
-    return bookDtoRepository.findNextInSeriesOrNull(bookId, principal.user.id)
+    return bookDtoRepository
+      .findNextInSeriesOrNull(bookId, principal.user.id)
       ?.restrictUrl(!principal.user.roleAdmin)
       ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
   }
@@ -275,7 +284,8 @@ class BookController(
   ): List<ReadListDto> {
     contentRestrictionChecker.checkContentRestriction(principal.user, bookId)
 
-    return readListRepository.findAllContainingBookId(bookId, principal.user.getAuthorizedLibraryIds(null), principal.user.restrictions)
+    return readListRepository
+      .findAllContainingBookId(bookId, principal.user.getAuthorizedLibraryIds(null), principal.user.restrictions)
       .map { it.toDto() }
   }
 
@@ -313,7 +323,8 @@ class BookController(
   ): Collection<ThumbnailBookDto> {
     contentRestrictionChecker.checkContentRestriction(principal.user, bookId)
 
-    return thumbnailBookRepository.findAllByBookId(bookId)
+    return thumbnailBookRepository
+      .findAllByBookId(bookId)
       .map { it.toDto() }
   }
 
@@ -331,18 +342,19 @@ class BookController(
     if (!contentDetector.isImage(mediaType))
       throw ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
 
-    return bookLifecycle.addThumbnailForBook(
-      ThumbnailBook(
-        bookId = book.id,
-        thumbnail = file.bytes,
-        type = ThumbnailBook.Type.USER_UPLOADED,
-        selected = selected,
-        fileSize = file.bytes.size.toLong(),
-        mediaType = mediaType,
-        dimension = imageAnalyzer.getDimension(file.inputStream.buffered()) ?: Dimension(0, 0),
-      ),
-      if (selected) MarkSelectedPreference.YES else MarkSelectedPreference.NO,
-    ).toDto()
+    return bookLifecycle
+      .addThumbnailForBook(
+        ThumbnailBook(
+          bookId = book.id,
+          thumbnail = file.bytes,
+          type = ThumbnailBook.Type.USER_UPLOADED,
+          selected = selected,
+          fileSize = file.bytes.size.toLong(),
+          mediaType = mediaType,
+          dimension = imageAnalyzer.getDimension(file.inputStream.buffered()) ?: Dimension(0, 0),
+        ),
+        if (selected) MarkSelectedPreference.YES else MarkSelectedPreference.NO,
+      ).toDto()
   }
 
   @PutMapping("api/v1/books/{bookId}/thumbnails/{thumbnailId}/selected")
@@ -435,8 +447,7 @@ class BookController(
     acceptHeaders: MutableList<MediaType>?,
     @RequestParam(value = "contentNegotiation", defaultValue = "true")
     contentNegotiation: Boolean,
-  ): ResponseEntity<ByteArray> =
-    commonBookController.getBookPageInternal(bookId, if (zeroBasedIndex) pageNumber + 1 else pageNumber, convertTo, request, principal, if (contentNegotiation) acceptHeaders else null)
+  ): ResponseEntity<ByteArray> = commonBookController.getBookPageInternal(bookId, if (zeroBasedIndex) pageNumber + 1 else pageNumber, convertTo, request, principal, if (contentNegotiation) acceptHeaders else null)
 
   @ApiResponse(content = [Content(schema = Schema(type = "string", format = "binary"))])
   @GetMapping(
@@ -463,7 +474,8 @@ class BookController(
       try {
         val pageContent = bookLifecycle.getBookPage(book, pageNumber, resizeTo = 300)
 
-        ResponseEntity.ok()
+        ResponseEntity
+          .ok()
           .contentType(getMediaTypeOrDefault(pageContent.mediaType))
           .setNotModified(media)
           .body(pageContent.bytes)
@@ -488,7 +500,8 @@ class BookController(
     @PathVariable bookId: String,
   ): ResponseEntity<WPPublicationDto> {
     val manifest = commonBookController.getWebPubManifestInternal(principal, bookId, webPubGenerator)
-    return ResponseEntity.ok()
+    return ResponseEntity
+      .ok()
       .contentType(manifest.mediaType)
       .body(manifest)
   }
@@ -518,7 +531,8 @@ class BookController(
         mediaRepository.findExtensionByIdOrNull(book.id) as? MediaExtensionEpub
           ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
 
-      ResponseEntity.ok()
+      ResponseEntity
+        .ok()
         .contentType(MEDIATYPE_POSITION_LIST_JSON)
         .setNotModified(media)
         .body(R2Positions(extension.positions.size, extension.positions))
@@ -531,8 +545,7 @@ class BookController(
   fun getWebPubManifestEpub(
     @AuthenticationPrincipal principal: KomgaPrincipal,
     @PathVariable bookId: String,
-  ): WPPublicationDto =
-    commonBookController.getWebPubManifestEpubInternal(principal, bookId, webPubGenerator)
+  ): WPPublicationDto = commonBookController.getWebPubManifestEpubInternal(principal, bookId, webPubGenerator)
 
   @GetMapping(
     value = ["api/v1/books/{bookId}/manifest/pdf"],
@@ -541,8 +554,7 @@ class BookController(
   fun getWebPubManifestPdf(
     @AuthenticationPrincipal principal: KomgaPrincipal,
     @PathVariable bookId: String,
-  ): WPPublicationDto =
-    commonBookController.getWebPubManifestPdfInternal(principal, bookId, webPubGenerator)
+  ): WPPublicationDto = commonBookController.getWebPubManifestPdfInternal(principal, bookId, webPubGenerator)
 
   @GetMapping(
     value = ["api/v1/books/{bookId}/manifest/divina"],
@@ -551,8 +563,7 @@ class BookController(
   fun getWebPubManifestDivina(
     @AuthenticationPrincipal principal: KomgaPrincipal,
     @PathVariable bookId: String,
-  ): WPPublicationDto =
-    commonBookController.getWebPubManifestDivinaInternal(principal, bookId, webPubGenerator)
+  ): WPPublicationDto = commonBookController.getWebPubManifestDivinaInternal(principal, bookId, webPubGenerator)
 
   @PostMapping("api/v1/books/{bookId}/analyze")
   @PreAuthorize("hasRole('$ROLE_ADMIN')")
@@ -586,16 +597,15 @@ class BookController(
     @Valid
     @RequestBody
     newMetadata: BookMetadataUpdateDto,
-  ) =
-    bookMetadataRepository.findByIdOrNull(bookId)?.let { existing ->
-      val updated = existing.patch(newMetadata)
-      bookMetadataRepository.update(updated)
+  ) = bookMetadataRepository.findByIdOrNull(bookId)?.let { existing ->
+    val updated = existing.patch(newMetadata)
+    bookMetadataRepository.update(updated)
 
-      bookRepository.findByIdOrNull(bookId)?.let { updatedBook ->
-        taskEmitter.aggregateSeriesMetadata(updatedBook.seriesId)
-        updatedBook.let { eventPublisher.publishEvent(DomainEvent.BookUpdated(it)) }
-      }
-    } ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+    bookRepository.findByIdOrNull(bookId)?.let { updatedBook ->
+      taskEmitter.aggregateSeriesMetadata(updatedBook.seriesId)
+      updatedBook.let { eventPublisher.publishEvent(DomainEvent.BookUpdated(it)) }
+    }
+  } ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
 
   @PatchMapping("api/v1/books/metadata")
   @PreAuthorize("hasRole('$ROLE_ADMIN')")

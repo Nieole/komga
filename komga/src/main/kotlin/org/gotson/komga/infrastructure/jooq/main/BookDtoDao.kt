@@ -1,11 +1,12 @@
 package org.gotson.komga.infrastructure.jooq.main
 
-import org.gotson.komga.domain.model.BookSearchWithReadProgress
+import org.gotson.komga.domain.model.BookSearch
 import org.gotson.komga.domain.model.ContentRestrictions
-import org.gotson.komga.domain.model.MediaType
 import org.gotson.komga.domain.model.ReadList
-import org.gotson.komga.domain.model.ReadStatus
+import org.gotson.komga.domain.model.SearchContext
 import org.gotson.komga.infrastructure.datasource.SqliteUdfDataSource
+import org.gotson.komga.infrastructure.jooq.BookSearchHelper
+import org.gotson.komga.infrastructure.jooq.RequiredJoin
 import org.gotson.komga.infrastructure.jooq.insertTempStrings
 import org.gotson.komga.infrastructure.jooq.noCase
 import org.gotson.komga.infrastructure.jooq.selectTempStrings
@@ -33,6 +34,7 @@ import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Record
 import org.jooq.ResultQuery
+import org.jooq.SelectOnConditionStep
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.falseCondition
 import org.jooq.impl.DSL.noCondition
@@ -58,9 +60,7 @@ class BookDtoDao(
   private val m = Tables.MEDIA
   private val d = Tables.BOOK_METADATA
   private val r = Tables.READ_PROGRESS
-  private val rs = Tables.READ_PROGRESS_SERIES
   private val a = Tables.BOOK_METADATA_AUTHOR
-  private val s = Tables.SERIES
   private val sd = Tables.SERIES_METADATA
   private val rlb = Tables.READLIST_BOOK
   private val bt = Tables.BOOK_METADATA_TAG
@@ -82,6 +82,7 @@ class BookDtoDao(
       "media.status" to m.STATUS.noCase(),
       "media.comment" to m.COMMENT.noCase(),
       "media.mediaType" to m.MEDIA_TYPE.noCase(),
+      "media.pagesCount" to m.PAGE_COUNT,
       "metadata.title" to d.TITLE.collate(SqliteUdfDataSource.COLLATION_UNICODE_3),
       "metadata.numberSort" to d.NUMBER_SORT,
       "metadata.releaseDate" to d.RELEASE_DATE,
@@ -90,37 +91,30 @@ class BookDtoDao(
       "readList.number" to rlb.NUMBER,
     )
 
+  override fun findAll(pageable: Pageable): Page<BookDto> = findAll(BookSearch(), SearchContext.ofAnonymousUser(), pageable)
+
   override fun findAll(
-    search: BookSearchWithReadProgress,
-    userId: String,
+    context: SearchContext,
     pageable: Pageable,
-    restrictions: ContentRestrictions,
-  ): Page<BookDto> {
-    val conditions = search.toCondition().and(restrictions.toCondition(dsl))
+  ): Page<BookDto> = findAll(BookSearch(), context, pageable)
 
-    return findAll(conditions, userId, pageable, false, null, search.searchTerm)
-  }
-
-  override fun findAllByReadListId(
-    readListId: String,
-    userId: String,
-    filterOnLibraryIds: Collection<String>?,
-    search: BookSearchWithReadProgress,
+  override fun findAll(
+    search: BookSearch,
+    context: SearchContext,
     pageable: Pageable,
-    restrictions: ContentRestrictions,
   ): Page<BookDto> {
-    val conditions = rlb.READLIST_ID.eq(readListId).and(search.toCondition()).and(restrictions.toCondition(dsl))
+    requireNotNull(context.userId) { "Missing userId in search context" }
 
-    return findAll(conditions, userId, pageable, true, filterOnLibraryIds, search.searchTerm)
+    val (conditions, joins) = BookSearchHelper(context).toCondition(search.condition)
+    return findAll(conditions, context.userId, pageable, search.fullTextSearch, joins)
   }
 
   private fun findAll(
     conditions: Condition,
     userId: String,
     pageable: Pageable,
-    selectReadListNumber: Boolean = false,
-    filterOnLibraryIds: Collection<String>?,
     searchTerm: String?,
+    joins: Set<RequiredJoin>,
   ): Page<BookDto> {
     val bookIds = luceneHelper.searchEntitiesIds(searchTerm, LuceneEntity.Book)
 
@@ -147,24 +141,39 @@ class BookDtoDao(
 
         val count =
           dsl.fetchCount(
-            dsl.select(b.ID)
+            dsl
+              .select(b.ID)
               .from(b)
-              .leftJoin(m).on(b.ID.eq(m.BOOK_ID))
-              .leftJoin(d).on(b.ID.eq(d.BOOK_ID))
-              .leftJoin(r).on(b.ID.eq(r.BOOK_ID)).and(readProgressCondition(userId))
-              .leftJoin(sd).on(b.SERIES_ID.eq(sd.SERIES_ID))
-              .apply { filterOnLibraryIds?.let { and(b.LIBRARY_ID.`in`(it)) } }
-              .apply { if (selectReadListNumber) leftJoin(rlb).on(b.ID.eq(rlb.BOOK_ID)) }
-              .where(conditions)
+              .leftJoin(m)
+              .on(b.ID.eq(m.BOOK_ID))
+              .leftJoin(d)
+              .on(b.ID.eq(d.BOOK_ID))
+              .leftJoin(r)
+              .on(b.ID.eq(r.BOOK_ID))
+              .and(readProgressCondition(userId))
+              .leftJoin(sd)
+              .on(b.SERIES_ID.eq(sd.SERIES_ID))
+              .apply {
+                joins.forEach { join ->
+                  when (join) {
+                    // always joined
+                    RequiredJoin.BookMetadata -> Unit
+                    RequiredJoin.Media -> Unit
+                    is RequiredJoin.ReadProgress -> Unit
+                    // Series joins - not needed
+                    RequiredJoin.BookMetadataAggregation -> Unit
+                    RequiredJoin.SeriesMetadata -> Unit
+                  }
+                }
+              }.where(conditions)
               .and(searchCondition)
               .groupBy(b.ID),
           )
 
         val dtos =
-          selectBase(userId, selectReadListNumber)
+          selectBase(userId, joins, pageable.sort.any { it.property == "readList.number" })
             .where(conditions)
             .and(searchCondition)
-            .apply { filterOnLibraryIds?.let { and(b.LIBRARY_ID.`in`(it)) } }
             .orderBy(orderBy)
             .apply { if (pageable.isPaged) limit(pageable.pageSize).offset(pageable.offset) }
             .fetchAndMap()
@@ -195,14 +204,12 @@ class BookDtoDao(
   override fun findPreviousInSeriesOrNull(
     bookId: String,
     userId: String,
-  ): BookDto? =
-    findSiblingSeries(bookId, userId, next = false)
+  ): BookDto? = findSiblingSeries(bookId, userId, next = false)
 
   override fun findNextInSeriesOrNull(
     bookId: String,
     userId: String,
-  ): BookDto? =
-    findSiblingSeries(bookId, userId, next = true)
+  ): BookDto? = findSiblingSeries(bookId, userId, next = true)
 
   override fun findPreviousInReadListOrNull(
     readList: ReadList,
@@ -210,8 +217,7 @@ class BookDtoDao(
     userId: String,
     filterOnLibraryIds: Collection<String>?,
     restrictions: ContentRestrictions,
-  ): BookDto? =
-    findSiblingReadList(readList, bookId, userId, filterOnLibraryIds, restrictions, next = false)
+  ): BookDto? = findSiblingReadList(readList, bookId, userId, filterOnLibraryIds, restrictions, next = false)
 
   override fun findNextInReadListOrNull(
     readList: ReadList,
@@ -219,8 +225,7 @@ class BookDtoDao(
     userId: String,
     filterOnLibraryIds: Collection<String>?,
     restrictions: ContentRestrictions,
-  ): BookDto? =
-    findSiblingReadList(readList, bookId, userId, filterOnLibraryIds, restrictions, next = true)
+  ): BookDto? = findSiblingReadList(readList, bookId, userId, filterOnLibraryIds, restrictions, next = true)
 
   override fun findAllOnDeck(
     userId: String,
@@ -252,7 +257,8 @@ class BookDtoDao(
     pageable: Pageable,
   ): Page<BookDto> {
     val hashes =
-      dsl.select(b.FILE_HASH, DSL.count(b.ID))
+      dsl
+        .select(b.FILE_HASH, DSL.count(b.ID))
         .from(b)
         .where(b.FILE_HASH.ne(""))
         .groupBy(b.FILE_HASH, b.FILE_SIZE)
@@ -289,9 +295,11 @@ class BookDtoDao(
     next: Boolean,
   ): BookDto? {
     val record =
-      dsl.select(b.SERIES_ID, d.NUMBER_SORT)
+      dsl
+        .select(b.SERIES_ID, d.NUMBER_SORT)
         .from(b)
-        .leftJoin(d).on(b.ID.eq(d.BOOK_ID))
+        .leftJoin(d)
+        .on(b.ID.eq(d.BOOK_ID))
         .where(b.ID.eq(bookId))
         .fetchOne()!!
     val seriesId = record.get(0, String::class.java)
@@ -316,17 +324,19 @@ class BookDtoDao(
   ): BookDto? {
     if (readList.ordered) {
       val numberSort =
-        dsl.select(rlb.NUMBER)
+        dsl
+          .select(rlb.NUMBER)
           .from(b)
-          .leftJoin(rlb).on(b.ID.eq(rlb.BOOK_ID))
+          .leftJoin(rlb)
+          .on(b.ID.eq(rlb.BOOK_ID))
           .where(b.ID.eq(bookId))
           .and(rlb.READLIST_ID.eq(readList.id))
           .apply { filterOnLibraryIds?.let { and(b.LIBRARY_ID.`in`(it)) } }
           .fetchOne(rlb.NUMBER)
 
-      return selectBase(userId, true)
+      return selectBase(userId, joinOnReadList = true)
         .where(rlb.READLIST_ID.eq(readList.id))
-        .apply { if (restrictions.isRestricted) and(restrictions.toCondition(dsl)) }
+        .apply { if (restrictions.isRestricted) and(restrictions.toCondition()) }
         .apply { filterOnLibraryIds?.let { and(b.LIBRARY_ID.`in`(it)) } }
         .orderBy(rlb.NUMBER.let { if (next) it.asc() else it.desc() })
         .seek(numberSort)
@@ -337,13 +347,16 @@ class BookDtoDao(
       // it is too complex to perform a seek by release date as it could be null and could also have multiple occurrences of the same value
       // instead we pull the whole list of ids, and perform the seek on the list
       val bookIds =
-        dsl.select(b.ID)
+        dsl
+          .select(b.ID)
           .from(b)
-          .leftJoin(rlb).on(b.ID.eq(rlb.BOOK_ID))
-          .leftJoin(d).on(b.ID.eq(d.BOOK_ID))
+          .leftJoin(rlb)
+          .on(b.ID.eq(rlb.BOOK_ID))
+          .leftJoin(d)
+          .on(b.ID.eq(d.BOOK_ID))
           .apply { if (restrictions.isRestricted) leftJoin(sd).on(sd.SERIES_ID.eq(b.SERIES_ID)) }
           .where(rlb.READLIST_ID.eq(readList.id))
-          .apply { if (restrictions.isRestricted) and(restrictions.toCondition(dsl)) }
+          .apply { if (restrictions.isRestricted) and(restrictions.toCondition()) }
           .apply { filterOnLibraryIds?.let { and(b.LIBRARY_ID.`in`(it)) } }
           .orderBy(d.RELEASE_DATE)
           .fetch(b.ID)
@@ -363,21 +376,45 @@ class BookDtoDao(
 
   private fun selectBase(
     userId: String,
-    selectReadListNumber: Boolean = false,
-  ) =
-    dsl.select(
-      *b.fields(),
-      *m.fields(),
-      *d.fields(),
-      *r.fields(),
-      sd.TITLE,
-    ).apply { if (selectReadListNumber) select(rlb.NUMBER) }
+    joins: Set<RequiredJoin> = emptySet(),
+    joinOnReadList: Boolean = false,
+  ): SelectOnConditionStep<Record> {
+    val selectFields =
+      listOf(
+        *b.fields(),
+        *m.fields(),
+        *d.fields(),
+        *r.fields(),
+        sd.TITLE,
+      )
+
+    return dsl
+      .let { if (joinOnReadList) it.selectDistinct(selectFields) else it.select(selectFields) }
       .from(b)
-      .leftJoin(m).on(b.ID.eq(m.BOOK_ID))
-      .leftJoin(d).on(b.ID.eq(d.BOOK_ID))
-      .leftJoin(r).on(b.ID.eq(r.BOOK_ID)).and(readProgressCondition(userId))
-      .leftJoin(sd).on(b.SERIES_ID.eq(sd.SERIES_ID))
-      .apply { if (selectReadListNumber) leftJoin(rlb).on(b.ID.eq(rlb.BOOK_ID)) }
+      .leftJoin(m)
+      .on(b.ID.eq(m.BOOK_ID))
+      .leftJoin(d)
+      .on(b.ID.eq(d.BOOK_ID))
+      .leftJoin(r)
+      .on(b.ID.eq(r.BOOK_ID))
+      .and(readProgressCondition(userId))
+      .leftJoin(sd)
+      .on(b.SERIES_ID.eq(sd.SERIES_ID))
+      .apply {
+        if (joinOnReadList) leftJoin(rlb).on(b.ID.eq(rlb.BOOK_ID))
+        joins.forEach { join ->
+          when (join) {
+            // always joined
+            RequiredJoin.BookMetadata -> Unit
+            RequiredJoin.Media -> Unit
+            is RequiredJoin.ReadProgress -> Unit
+            // Series joins - not needed
+            RequiredJoin.BookMetadataAggregation -> Unit
+            RequiredJoin.SeriesMetadata -> Unit
+          }
+        }
+      }
+  }
 
   private fun ResultQuery<Record>.fetchAndMap(): MutableList<BookDto> {
     val records = fetch()
@@ -389,18 +426,21 @@ class BookDtoDao(
     transactionTemplate.executeWithoutResult {
       dsl.insertTempStrings(batchSize, bookIds)
       authors =
-        dsl.selectFrom(a)
+        dsl
+          .selectFrom(a)
           .where(a.BOOK_ID.`in`(dsl.selectTempStrings()))
           .filter { it.name != null }
           .groupBy({ it.bookId }, { AuthorDto(it.name, it.role) })
 
       tags =
-        dsl.selectFrom(bt)
+        dsl
+          .selectFrom(bt)
           .where(bt.BOOK_ID.`in`(dsl.selectTempStrings()))
           .groupBy({ it.bookId }, { it.tag })
 
       links =
-        dsl.selectFrom(bl)
+        dsl
+          .selectFrom(bl)
           .where(bl.BOOK_ID.`in`(dsl.selectTempStrings()))
           .groupBy({ it.bookId }, { WebLinkDto(it.label, it.url) })
     }
@@ -417,67 +457,30 @@ class BookDtoDao(
       }
   }
 
-  private fun BookSearchWithReadProgress.toCondition(): Condition {
-    var c: Condition = noCondition()
-
-    if (libraryIds != null) c = c.and(b.LIBRARY_ID.`in`(libraryIds))
-    if (!seriesIds.isNullOrEmpty()) c = c.and(b.SERIES_ID.`in`(seriesIds))
-    if (!mediaStatus.isNullOrEmpty()) c = c.and(m.STATUS.`in`(mediaStatus))
-    if (!mediaProfile.isNullOrEmpty()) c = c.and(m.MEDIA_TYPE.`in`(mediaProfile.flatMap { profile -> MediaType.matchingMediaProfile(profile).map { it.type } }.toSet()))
-    if (deleted == true) c = c.and(b.DELETED_DATE.isNotNull)
-    if (deleted == false) c = c.and(b.DELETED_DATE.isNull)
-    if (releasedAfter != null) c = c.and(d.RELEASE_DATE.gt(releasedAfter))
-    if (!tags.isNullOrEmpty()) c = c.and(b.ID.`in`(dsl.select(bt.BOOK_ID).from(bt).where(bt.TAG.collate(SqliteUdfDataSource.COLLATION_UNICODE_3).`in`(tags))))
-
-    if (readStatus != null) {
-      val cr =
-        readStatus.map {
-          when (it) {
-            ReadStatus.UNREAD -> r.COMPLETED.isNull
-            ReadStatus.READ -> r.COMPLETED.isTrue
-            ReadStatus.IN_PROGRESS -> r.COMPLETED.isFalse
-          }
-        }.reduce { acc, condition -> acc.or(condition) }
-
-      c = c.and(cr)
-    }
-
-    if (!authors.isNullOrEmpty()) {
-      var ca = noCondition()
-      authors.forEach {
-        ca = ca.or(b.ID.`in`(dsl.select(a.BOOK_ID).from(a).where(a.NAME.equalIgnoreCase(it.name).and(a.ROLE.equalIgnoreCase(it.role)))))
-      }
-      c = c.and(ca)
-    }
-
-    return c
-  }
-
   private fun BookRecord.toDto(
     media: MediaDto,
     metadata: BookMetadataDto,
     readProgress: ReadProgressDto?,
     seriesTitle: String,
-  ) =
-    BookDto(
-      id = id,
-      seriesId = seriesId,
-      seriesTitle = seriesTitle,
-      libraryId = libraryId,
-      name = name,
-      url = URL(url).toFilePath(),
-      number = number,
-      created = createdDate,
-      lastModified = lastModifiedDate,
-      fileLastModified = fileLastModified.toUTC(),
-      sizeBytes = fileSize,
-      media = media,
-      metadata = metadata,
-      readProgress = readProgress,
-      deleted = deletedDate != null,
-      fileHash = fileHash,
-      oneshot = oneshot,
-    )
+  ) = BookDto(
+    id = id,
+    seriesId = seriesId,
+    seriesTitle = seriesTitle,
+    libraryId = libraryId,
+    name = name,
+    url = URL(url).toFilePath(),
+    number = number,
+    created = createdDate,
+    lastModified = lastModifiedDate,
+    fileLastModified = fileLastModified.toUTC(),
+    sizeBytes = fileSize,
+    media = media,
+    metadata = metadata,
+    readProgress = readProgress,
+    deleted = deletedDate != null,
+    fileHash = fileHash,
+    oneshot = oneshot,
+  )
 
   private fun MediaRecord.toDto() =
     MediaDto(
@@ -493,29 +496,28 @@ class BookDtoDao(
     authors: List<AuthorDto>,
     tags: Set<String>,
     links: List<WebLinkDto>,
-  ) =
-    BookMetadataDto(
-      title = title,
-      titleLock = titleLock,
-      summary = summary,
-      summaryLock = summaryLock,
-      number = number,
-      numberLock = numberLock,
-      numberSort = numberSort,
-      numberSortLock = numberSortLock,
-      releaseDate = releaseDate,
-      releaseDateLock = releaseDateLock,
-      authors = authors,
-      authorsLock = authorsLock,
-      tags = tags,
-      tagsLock = tagsLock,
-      isbn = isbn,
-      isbnLock = isbnLock,
-      links = links,
-      linksLock = linksLock,
-      created = createdDate,
-      lastModified = lastModifiedDate,
-    )
+  ) = BookMetadataDto(
+    title = title,
+    titleLock = titleLock,
+    summary = summary,
+    summaryLock = summaryLock,
+    number = number,
+    numberLock = numberLock,
+    numberSort = numberSort,
+    numberSortLock = numberSortLock,
+    releaseDate = releaseDate,
+    releaseDateLock = releaseDateLock,
+    authors = authors,
+    authorsLock = authorsLock,
+    tags = tags,
+    tagsLock = tagsLock,
+    isbn = isbn,
+    isbnLock = isbnLock,
+    links = links,
+    linksLock = linksLock,
+    created = createdDate,
+    lastModified = lastModifiedDate,
+  )
 
   private fun ReadProgressRecord.toDto() =
     ReadProgressDto(

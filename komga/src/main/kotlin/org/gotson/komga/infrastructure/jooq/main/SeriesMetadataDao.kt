@@ -32,44 +32,48 @@ class SeriesMetadataDao(
   private val slk = Tables.SERIES_METADATA_LINK
   private val sat = Tables.SERIES_METADATA_ALTERNATE_TITLE
 
-  override fun findById(seriesId: String): SeriesMetadata =
-    findOne(seriesId)!!.toDomain(findGenres(seriesId), findTags(seriesId), findSharingLabels(seriesId), findLinks(seriesId), findAlternateTitles(seriesId))
+  override fun findById(seriesId: String): SeriesMetadata = findOne(seriesId)!!.toDomain(findGenres(seriesId), findTags(seriesId), findSharingLabels(seriesId), findLinks(seriesId), findAlternateTitles(seriesId))
 
-  override fun findByIdOrNull(seriesId: String): SeriesMetadata? =
-    findOne(seriesId)?.toDomain(findGenres(seriesId), findTags(seriesId), findSharingLabels(seriesId), findLinks(seriesId), findAlternateTitles(seriesId))
+  override fun findByIdOrNull(seriesId: String): SeriesMetadata? = findOne(seriesId)?.toDomain(findGenres(seriesId), findTags(seriesId), findSharingLabels(seriesId), findLinks(seriesId), findAlternateTitles(seriesId))
 
   private fun findOne(seriesId: String) =
-    dsl.selectFrom(d)
+    dsl
+      .selectFrom(d)
       .where(d.SERIES_ID.eq(seriesId))
       .fetchOneInto(d)
 
   private fun findGenres(seriesId: String) =
-    dsl.select(g.GENRE)
+    dsl
+      .select(g.GENRE)
       .from(g)
       .where(g.SERIES_ID.eq(seriesId))
       .fetchSet(g.GENRE)
 
   private fun findTags(seriesId: String) =
-    dsl.select(st.TAG)
+    dsl
+      .select(st.TAG)
       .from(st)
       .where(st.SERIES_ID.eq(seriesId))
       .fetchSet(st.TAG)
 
   private fun findSharingLabels(seriesId: String) =
-    dsl.select(sl.LABEL)
+    dsl
+      .select(sl.LABEL)
       .from(sl)
       .where(sl.SERIES_ID.eq(seriesId))
       .fetchSet(sl.LABEL)
 
   private fun findLinks(seriesId: String) =
-    dsl.select(slk.LABEL, slk.URL)
+    dsl
+      .select(slk.LABEL, slk.URL)
       .from(slk)
       .where(slk.SERIES_ID.eq(seriesId))
       .fetchInto(slk)
       .map { WebLink(it.label, URI(it.url)) }
 
   private fun findAlternateTitles(seriesId: String) =
-    dsl.select(sat.LABEL, sat.TITLE)
+    dsl
+      .select(sat.LABEL, sat.TITLE)
       .from(sat)
       .where(sat.SERIES_ID.eq(seriesId))
       .fetchInto(sat)
@@ -77,7 +81,8 @@ class SeriesMetadataDao(
 
   @Transactional
   override fun insert(metadata: SeriesMetadata) {
-    dsl.insertInto(d)
+    dsl
+      .insertInto(d)
       .set(d.SERIES_ID, metadata.seriesId)
       .set(d.STATUS, metadata.status.toString())
       .set(d.TITLE, metadata.title)
@@ -116,7 +121,8 @@ class SeriesMetadataDao(
   @Transactional
   override fun update(metadata: SeriesMetadata) {
     logger.debug { "Updating series metadata: $metadata" }
-    dsl.update(d)
+    dsl
+      .update(d)
       .set(d.STATUS, metadata.status.toString())
       .set(d.TITLE, metadata.title)
       .set(d.TITLE_SORT, metadata.titleSort)
@@ -146,23 +152,28 @@ class SeriesMetadataDao(
       .where(d.SERIES_ID.eq(metadata.seriesId))
       .execute()
 
-    dsl.deleteFrom(g)
+    dsl
+      .deleteFrom(g)
       .where(g.SERIES_ID.eq(metadata.seriesId))
       .execute()
 
-    dsl.deleteFrom(st)
+    dsl
+      .deleteFrom(st)
       .where(st.SERIES_ID.eq(metadata.seriesId))
       .execute()
 
-    dsl.deleteFrom(sl)
+    dsl
+      .deleteFrom(sl)
       .where(sl.SERIES_ID.eq(metadata.seriesId))
       .execute()
 
-    dsl.deleteFrom(slk)
+    dsl
+      .deleteFrom(slk)
       .where(slk.SERIES_ID.eq(metadata.seriesId))
       .execute()
 
-    dsl.deleteFrom(sat)
+    dsl
+      .deleteFrom(sat)
       .where(sat.SERIES_ID.eq(metadata.seriesId))
       .execute()
 
@@ -176,14 +187,16 @@ class SeriesMetadataDao(
   private fun insertGenres(metadata: SeriesMetadata) {
     if (metadata.genres.isNotEmpty()) {
       metadata.genres.chunked(batchSize).forEach { chunk ->
-        dsl.batch(
-          dsl.insertInto(g, g.SERIES_ID, g.GENRE)
-            .values(null as String?, null),
-        ).also { step ->
-          chunk.forEach {
-            step.bind(metadata.seriesId, it)
-          }
-        }.execute()
+        dsl
+          .batch(
+            dsl
+              .insertInto(g, g.SERIES_ID, g.GENRE)
+              .values(null as String?, null),
+          ).also { step ->
+            chunk.forEach {
+              step.bind(metadata.seriesId, it)
+            }
+          }.execute()
       }
     }
   }
@@ -191,14 +204,16 @@ class SeriesMetadataDao(
   private fun insertTags(metadata: SeriesMetadata) {
     if (metadata.tags.isNotEmpty()) {
       metadata.tags.chunked(batchSize).forEach { chunk ->
-        dsl.batch(
-          dsl.insertInto(st, st.SERIES_ID, st.TAG)
-            .values(null as String?, null),
-        ).also { step ->
-          chunk.forEach {
-            step.bind(metadata.seriesId, it)
-          }
-        }.execute()
+        dsl
+          .batch(
+            dsl
+              .insertInto(st, st.SERIES_ID, st.TAG)
+              .values(null as String?, null),
+          ).also { step ->
+            chunk.forEach {
+              step.bind(metadata.seriesId, it)
+            }
+          }.execute()
       }
     }
   }
@@ -206,14 +221,16 @@ class SeriesMetadataDao(
   private fun insertSharingLabels(metadata: SeriesMetadata) {
     if (metadata.sharingLabels.isNotEmpty()) {
       metadata.sharingLabels.chunked(batchSize).forEach { chunk ->
-        dsl.batch(
-          dsl.insertInto(sl, sl.SERIES_ID, sl.LABEL)
-            .values(null as String?, null),
-        ).also { step ->
-          chunk.forEach {
-            step.bind(metadata.seriesId, it)
-          }
-        }.execute()
+        dsl
+          .batch(
+            dsl
+              .insertInto(sl, sl.SERIES_ID, sl.LABEL)
+              .values(null as String?, null),
+          ).also { step ->
+            chunk.forEach {
+              step.bind(metadata.seriesId, it)
+            }
+          }.execute()
       }
     }
   }
@@ -221,14 +238,16 @@ class SeriesMetadataDao(
   private fun insertLinks(metadata: SeriesMetadata) {
     if (metadata.links.isNotEmpty()) {
       metadata.links.chunked(batchSize).forEach { chunk ->
-        dsl.batch(
-          dsl.insertInto(slk, slk.SERIES_ID, slk.LABEL, slk.URL)
-            .values(null as String?, null, null),
-        ).also { step ->
-          chunk.forEach {
-            step.bind(metadata.seriesId, it.label, it.url.toString())
-          }
-        }.execute()
+        dsl
+          .batch(
+            dsl
+              .insertInto(slk, slk.SERIES_ID, slk.LABEL, slk.URL)
+              .values(null as String?, null, null),
+          ).also { step ->
+            chunk.forEach {
+              step.bind(metadata.seriesId, it.label, it.url.toString())
+            }
+          }.execute()
       }
     }
   }
@@ -236,14 +255,16 @@ class SeriesMetadataDao(
   private fun insertAlternateTitles(metadata: SeriesMetadata) {
     if (metadata.alternateTitles.isNotEmpty()) {
       metadata.alternateTitles.chunked(batchSize).forEach { chunk ->
-        dsl.batch(
-          dsl.insertInto(sat, sat.SERIES_ID, sat.LABEL, sat.TITLE)
-            .values(null as String?, null, null),
-        ).also { step ->
-          chunk.forEach {
-            step.bind(metadata.seriesId, it.label, it.title)
-          }
-        }.execute()
+        dsl
+          .batch(
+            dsl
+              .insertInto(sat, sat.SERIES_ID, sat.LABEL, sat.TITLE)
+              .values(null as String?, null, null),
+          ).also { step ->
+            chunk.forEach {
+              step.bind(metadata.seriesId, it.label, it.title)
+            }
+          }.execute()
       }
     }
   }

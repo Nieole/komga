@@ -171,7 +171,12 @@
 
             <template v-if="$vuetify.breakpoint.smAndUp">
               <!-- Alternate titles  -->
-              <read-more class="mb-4" i18n-less="titles_more.less" i18n-more="titles_more.more">
+              <read-more v-model="readMoreTitles"
+                         class="mb-4"
+                         i18n-less="titles_more.less"
+                         i18n-more="titles_more.more"
+                         v-if="series.metadata.alternateTitles.length > 0"
+              >
                 <v-row v-for="(a, i) in series.metadata.alternateTitles"
                        :key="i"
                        class="align-center text-caption"
@@ -201,7 +206,7 @@
 
               <v-row v-if="series.metadata.summary">
                 <v-col>
-                  <read-more>{{ series.metadata.summary }}</read-more>
+                  <read-more v-model="readMore">{{ series.metadata.summary }}</read-more>
                 </v-col>
               </v-row>
 
@@ -215,7 +220,7 @@
                     </template>
                     {{ $t('browse_series.series_no_summary') }}
                   </v-tooltip>
-                  <read-more>{{ series.booksMetadata.summary }}</read-more>
+                  <read-more v-model="readMore">{{ series.booksMetadata.summary }}</read-more>
                 </v-col>
               </v-row>
             </template>
@@ -225,7 +230,12 @@
 
       <template v-if="$vuetify.breakpoint.xsOnly">
         <!-- Alternate titles  -->
-        <read-more class="mb-4" i18n-less="titles_more.less" i18n-more="titles_more.more">
+        <read-more v-model="readMoreTitles"
+                   class="mb-4"
+                   i18n-less="titles_more.less"
+                   i18n-more="titles_more.more"
+                   v-if="series.metadata.alternateTitles.length > 0"
+        >
           <v-row v-for="(a, i) in series.metadata.alternateTitles"
                  :key="i"
                  class="align-center text-caption"
@@ -259,7 +269,7 @@
         <!--   Series summary     -->
         <v-row v-if="series.metadata.summary">
           <v-col>
-            <read-more>{{ series.metadata.summary }}</read-more>
+            <read-more v-model="readMore">{{ series.metadata.summary }}</read-more>
           </v-col>
         </v-row>
 
@@ -274,7 +284,7 @@
               </template>
               {{ $t('browse_series.series_no_summary') }}
             </v-tooltip>
-            <read-more>{{ series.booksMetadata.summary }}</read-more>
+            <read-more v-model="readMore">{{ series.booksMetadata.summary }}</read-more>
           </v-col>
         </v-row>
       </template>
@@ -377,6 +387,7 @@
           <v-chip
             v-for="(link, i) in series.metadata.links"
             :href="link.url"
+            rel="noreferrer"
             target="_blank"
             class="me-2"
             label
@@ -434,7 +445,18 @@
 
       <v-row>
         <v-col>
-          <collections-expansion-panels :collections="collections"/>
+          <collections-expansion-panels :collections="collections">
+            <template v-slot:prepend="props">
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on }">
+                  <v-btn icon class="me-2" v-on="on" @click="removeFromCollection(props.collection.id)">
+                    <v-icon>mdi-playlist-remove</v-icon>
+                  </v-btn>
+                </template>
+                <span>{{ $t('browse_series.remove_from_collection') }}</span>
+              </v-tooltip>
+            </template>
+          </collections-expansion-panels>
         </v-col>
       </v-row>
 
@@ -504,7 +526,7 @@ import {
 } from '@/types/events'
 import Vue from 'vue'
 import {Location} from 'vue-router'
-import {AuthorDto, BookDto} from '@/types/komga-books'
+import {BookDto} from '@/types/komga-books'
 import {SeriesStatus} from '@/types/enum-series'
 import FilterDrawer from '@/components/FilterDrawer.vue'
 import FilterList from '@/components/FilterList.vue'
@@ -546,6 +568,15 @@ import {
 } from '@/types/komga-search'
 import {objIsEqual} from '@/functions/object'
 import i18n from '@/i18n'
+import {
+  FILTER_ANY,
+  FILTER_NONE,
+  FilterMode,
+  FiltersActive,
+  FiltersActiveMode,
+  FiltersOptions,
+  NameValue,
+} from '@/types/filter'
 
 const tags = require('language-tags')
 
@@ -600,6 +631,8 @@ export default Vue.extend({
         tag: [] as NameValue[],
         mediaProfile: [] as NameValue[],
       },
+      readMore: false,
+      readMoreTitles: false,
     }
   },
   computed: {
@@ -661,6 +694,11 @@ export default Vue.extend({
               .content
               .map(x => x.name)
           },
+          values: [{
+            name: this.$t('filter.any').toString(),
+            value: FILTER_ANY,
+            nValue: FILTER_NONE,
+          }],
           anyAllSelector: true,
         }
       })
@@ -784,6 +822,8 @@ export default Vue.extend({
 
       // reset
       await this.resetParams(to, to.params.seriesId)
+      this.readMore = false
+      this.readMoreTitles = false
       this.page = 1
       this.totalPages = 1
       this.totalElements = null
@@ -977,14 +1017,6 @@ export default Vue.extend({
         pageRequest.sort = [`${sort.key},${sort.order}`]
       }
 
-      let authorsFilter = [] as AuthorDto[]
-      authorRoles.forEach((role: string) => {
-        if (role in this.filters) this.filters[role].forEach((name: string) => authorsFilter.push({
-          name: name,
-          role: role,
-        }))
-      })
-
       const conditions = [] as SearchConditionBook[]
       conditions.push(new SearchConditionSeriesId(new SearchOperatorIs(seriesId)))
       if (this.filters.readStatus && this.filters.readStatus.length > 0) conditions.push(new SearchConditionAnyOfBook(this.filters.readStatus))
@@ -992,10 +1024,21 @@ export default Vue.extend({
       if (this.filters.mediaProfile && this.filters.mediaProfile.length > 0) this.filtersMode?.mediaProfile?.allOf ? conditions.push(new SearchConditionAllOfBook(this.filters.mediaProfile)) : conditions.push(new SearchConditionAnyOfBook(this.filters.mediaProfile))
       authorRoles.forEach((role: string) => {
         if (role in this.filters) {
-          const authorConditions = this.filters[role].map((name: string) => new SearchConditionAuthor(new SearchOperatorIs({
-            name: name,
-            role: role,
-          })))
+          const authorConditions = this.filters[role].map((name: string) => {
+            if (name === FILTER_ANY)
+              return new SearchConditionAuthor(new SearchOperatorIs({
+                role: role,
+              }))
+            else if (name === FILTER_NONE)
+              return new SearchConditionAuthor(new SearchOperatorIsNot({
+                role: role,
+              }))
+            else
+              return new SearchConditionAuthor(new SearchOperatorIs({
+                name: name,
+                role: role,
+              }))
+          })
           conditions.push(this.filtersMode[role]?.allOf ? new SearchConditionAllOfBook(authorConditions) : new SearchConditionAnyOfBook(authorConditions))
         }
       })
@@ -1043,6 +1086,14 @@ export default Vue.extend({
     },
     deleteBooks() {
       this.$store.dispatch('dialogDeleteBook', this.selectedBooks)
+    },
+    removeFromCollection(collectionId: string) {
+      const col = this.collections.find(x => x.id == collectionId)
+      const modified = Object.assign({}, {seriesIds: col?.seriesIds.filter(x => x != this.seriesId)})
+      if (modified!.seriesIds!.length == 0)
+        this.$komgaCollections.deleteCollection(col!.id)
+      else
+        this.$komgaCollections.patchCollection(col!.id, modified)
     },
   },
 })

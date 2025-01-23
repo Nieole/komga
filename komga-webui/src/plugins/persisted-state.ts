@@ -13,6 +13,7 @@ export const persistedModule: Module<any, any> = {
       continuous: {
         scale: '',
         padding: '',
+        margin: '',
       },
       readingDirection: '',
       swipe: false,
@@ -22,6 +23,7 @@ export const persistedModule: Module<any, any> = {
     },
     epubreader: {},
     browsingPageSize: undefined as unknown as number,
+    thumbnailsPageSize: undefined as unknown as number,
     browsingPage: 1,
     collection: {
       filter: {},
@@ -99,6 +101,9 @@ export const persistedModule: Module<any, any> = {
     setWebreaderContinuousPadding(state, val) {
       state.webreader.continuous.padding = val
     },
+    setWebreaderContinuousMargin(state, val) {
+      state.webreader.continuous.margin = val
+    },
     setWebreaderReadingDirection(state, val) {
       state.webreader.readingDirection = val
     },
@@ -122,6 +127,9 @@ export const persistedModule: Module<any, any> = {
     },
     setBrowsingPage(state, val) {
       state.browsingPage = val
+    },
+    setThumbnailsPageSize(state, val) {
+      state.thumbnailsPageSize = val
     },
     setCollectionFilter(state, {id, filter}) {
       state.collection.filter[id] = filter

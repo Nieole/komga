@@ -4,7 +4,6 @@
       <!--   Action menu   -->
       <library-actions-menu v-if="library"
                             :library="library"/>
-      <libraries-actions-menu v-else/>
 
       <v-toolbar-title>
         <span>{{ toolbarTitle }}</span>
@@ -73,12 +72,10 @@ import {LibrarySseDto} from '@/types/komga-sse'
 import MultiSelectBar from '@/components/bars/MultiSelectBar.vue'
 import {LibraryDto} from '@/types/komga-libraries'
 import {ReadListDto} from '@/types/komga-readlists'
-import LibrariesActionsMenu from '@/components/menus/LibrariesActionsMenu.vue'
 
 export default Vue.extend({
   name: 'BrowseReadLists',
   components: {
-    LibrariesActionsMenu,
     LibraryActionsMenu,
     ToolbarSticky,
     LibraryNavigation,
@@ -253,7 +250,7 @@ export default Vue.extend({
     editSingle(element: ReadListDto) {
       this.$store.dispatch('dialogEditReadList', element)
     },
-    deleteReadLists () {
+    deleteReadLists() {
       this.$store.dispatch('dialogDeleteReadList', this.selectedReadLists)
     },
   },

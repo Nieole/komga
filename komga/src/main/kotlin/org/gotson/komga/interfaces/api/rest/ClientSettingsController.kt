@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Pattern
 import org.gotson.komga.infrastructure.jooq.main.ClientSettingsDtoDao
 import org.gotson.komga.infrastructure.security.KomgaPrincipal
+import org.gotson.komga.infrastructure.swagger.OpenApiConfiguration
 import org.gotson.komga.interfaces.api.rest.dto.ClientSettingDto
 import org.gotson.komga.interfaces.api.rest.dto.ClientSettingGlobalUpdateDto
 import org.gotson.komga.interfaces.api.rest.dto.ClientSettingUserUpdateDto
@@ -26,17 +27,11 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.parameters.RequestBody as OASRequestBody
 
-private const val KEY_REGEX = """[a-z]+(?:\.[a-z]+)*"""
+private const val KEY_REGEX = """^[a-z](?:[a-z0-9_-]*[a-z0-9])*(?:\.[a-z0-9](?:[a-z0-9_-]*[a-z0-9])*)*$"""
 
 @RestController
 @RequestMapping(value = ["api/v1/client-settings"], produces = [MediaType.APPLICATION_JSON_VALUE])
-@Tag(
-  name = "Client Settings",
-  description = """
-  Store and retrieve global and per-user settings.
-  Those settings are not used by Komga itself, but can be stored for convenience by client applications.
-  """,
-)
+@Tag(name = OpenApiConfiguration.TagNames.CLIENT_SETTINGS)
 @Validated
 class ClientSettingsController(
   private val clientSettingsDtoDao: ClientSettingsDtoDao,
@@ -48,7 +43,7 @@ class ClientSettingsController(
   ): Map<String, ClientSettingDto> = clientSettingsDtoDao.findAllGlobal(principal == null)
 
   @GetMapping("user/list")
-  @Operation(summary = "Retrieve client settings for the current user")
+  @Operation(summary = "Retrieve user client settings")
   fun getUserSettings(
     @AuthenticationPrincipal principal: KomgaPrincipal,
   ): Map<String, ClientSettingDto> = clientSettingsDtoDao.findAllUser(principal.user.id)
@@ -86,7 +81,7 @@ class ClientSettingsController(
       String,
       @NotNull @Valid
       ClientSettingGlobalUpdateDto,
-      >,
+    >,
   ) {
     newSettings.forEach { (key, setting) ->
       clientSettingsDtoDao.saveGlobal(key, setting.value, setting.allowUnauthorized)
@@ -95,7 +90,7 @@ class ClientSettingsController(
 
   @PatchMapping("user")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  @Operation(summary = "Save user settings for the current user", description = "Setting key should be a valid lowercase namespace string like 'application.domain.key'")
+  @Operation(summary = "Save user settings", description = "Setting key should be a valid lowercase namespace string like 'application.domain.key'")
   @OASRequestBody(
     content = [
       Content(
@@ -124,7 +119,7 @@ class ClientSettingsController(
       String,
       @NotNull @Valid
       ClientSettingUserUpdateDto,
-      >,
+    >,
   ) {
     newSettings.forEach { (key, setting) ->
       clientSettingsDtoDao.saveForUser(principal.user.id, key, setting.value)
@@ -148,14 +143,14 @@ class ClientSettingsController(
     @RequestBody keysToDelete: Set<
       @Pattern(regexp = KEY_REGEX)
       String,
-      >,
+    >,
   ) {
     clientSettingsDtoDao.deleteGlobalByKeys(keysToDelete)
   }
 
   @DeleteMapping("user")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  @Operation(summary = "Delete user settings for the current user", description = "Setting key should be a valid lowercase namespace string like 'application.domain.key'")
+  @Operation(summary = "Delete user settings", description = "Setting key should be a valid lowercase namespace string like 'application.domain.key'")
   @OASRequestBody(
     content = [
       Content(
@@ -171,7 +166,7 @@ class ClientSettingsController(
     @RequestBody keysToDelete: Set<
       @Pattern(regexp = KEY_REGEX)
       String,
-      >,
+    >,
   ) {
     clientSettingsDtoDao.deleteByUserIdAndKeys(principal.user.id, keysToDelete)
   }

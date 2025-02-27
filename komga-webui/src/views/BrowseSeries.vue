@@ -555,6 +555,7 @@ import {
   SearchConditionAnyOfBook,
   SearchConditionAuthor,
   SearchConditionBook,
+  SearchConditionDeleted,
   SearchConditionGenre,
   SearchConditionLanguage,
   SearchConditionMediaProfile,
@@ -564,7 +565,11 @@ import {
   SearchConditionSeriesStatus,
   SearchConditionTag,
   SearchOperatorIs,
+  SearchOperatorIsFalse,
   SearchOperatorIsNot,
+  SearchOperatorIsNotNull,
+  SearchOperatorIsNull,
+  SearchOperatorIsTrue,
 } from '@/types/komga-search'
 import {objIsEqual} from '@/functions/object'
 import i18n from '@/i18n'
@@ -639,6 +644,8 @@ export default Vue.extend({
     itemContext(): ItemContext[] {
       if (this.sortActive.key === 'metadata.releaseDate') return [ItemContext.RELEASE_DATE]
       if (this.sortActive.key === 'createdDate') return [ItemContext.DATE_ADDED]
+      if (this.sortActive.key === 'lastModifiedDate') return [ItemContext.DATE_UPDATED]
+      if (this.sortActive.key === 'readProgress.readDate') return [ItemContext.READ_DATE]
       if (this.sortActive.key === 'fileSize') return [ItemContext.FILE_SIZE]
       return []
     },
@@ -646,7 +653,9 @@ export default Vue.extend({
       return [
         {name: this.$t('sort.number').toString(), key: 'metadata.numberSort'},
         {name: this.$t('sort.date_added').toString(), key: 'createdDate'},
+        {name: this.$t('sort.date_updated').toString(), key: 'lastModifiedDate'},
         {name: this.$t('sort.release_date').toString(), key: 'metadata.releaseDate'},
+        {name: this.$t('sort.date_read').toString(), key: 'readProgress.readDate'},
         {name: this.$t('sort.file_size').toString(), key: 'fileSize'},
         {name: this.$t('sort.file_name').toString(), key: 'name'},
         {name: this.$t('sort.page_count').toString(), key: 'media.pagesCount'},
@@ -673,11 +682,31 @@ export default Vue.extend({
             },
           ],
         },
+        deleted: {
+          values: [
+            {
+              name: this.$t('common.unavailable').toString(),
+              value: new SearchConditionDeleted(new SearchOperatorIsTrue()),
+              nValue: new SearchConditionDeleted(new SearchOperatorIsFalse()),
+            },
+          ],
+        },
       } as FiltersOptions
     },
     filterOptionsPanel(): FiltersOptions {
       const r = {
-        tag: {name: this.$t('filter.tag').toString(), values: this.filterOptions.tag, anyAllSelector: true},
+        tag: {
+          name: this.$t('filter.tag').toString(),
+          values: [
+            {
+              name: this.$t('filter.any').toString(),
+              value: new SearchConditionTag(new SearchOperatorIsNotNull()),
+              nValue: new SearchConditionTag(new SearchOperatorIsNull()),
+            },
+            ...this.filterOptions.tag,
+          ],
+          anyAllSelector: true,
+        },
         mediaProfile: {
           name: this.$t('filter.media_profile').toString(), values: Object.values(MediaProfile).map(x => ({
             name: i18n.t(`enums.media_profile.${x}`),
@@ -857,11 +886,12 @@ export default Vue.extend({
 
       // get filter from query params and validate with available filter values
       let activeFilters = {} as FiltersActive
-      if (route.query.readStatus || route.query.tag || route.query.mediaProfile || authorRoles.some(role => role in route.query)) {
+      if (route.query.readStatus || route.query.tag || route.query.mediaProfile || authorRoles.some(role => role in route.query) || route.query.deleted) {
         activeFilters = {
           readStatus: route.query.readStatus || [],
           tag: route.query.tag || [],
           mediaProfile: route.query.mediaProfile || [],
+          deleted: route.query.deleted || [],
         }
         authorRoles.forEach((role: string) => {
           activeFilters[role] = route.query[role] || []
@@ -881,6 +911,7 @@ export default Vue.extend({
         readStatus: this.$_.intersectionWith(filters.readStatus, extractFilterOptionsValues(this.filterOptionsList.readStatus.values), objIsEqual) || [],
         tag: this.$_.intersectionWith(filters.tag, extractFilterOptionsValues(this.filterOptions.tag), objIsEqual) || [],
         mediaProfile: this.$_.intersectionWith(filters.mediaProfile, extractFilterOptionsValues(this.filterOptionsPanel.mediaProfile.values), objIsEqual) || [],
+        deleted: this.$_.intersectionWith(filters.deleted, extractFilterOptionsValues(this.filterOptionsList.deleted.values), objIsEqual) || [],
       } as any
       authorRoles.forEach((role: string) => {
         validFilter[role] = filters[role] || []
@@ -1022,6 +1053,7 @@ export default Vue.extend({
       if (this.filters.readStatus && this.filters.readStatus.length > 0) conditions.push(new SearchConditionAnyOfBook(this.filters.readStatus))
       if (this.filters.tag && this.filters.tag.length > 0) this.filtersMode?.tag?.allOf ? conditions.push(new SearchConditionAllOfBook(this.filters.tag)) : conditions.push(new SearchConditionAnyOfBook(this.filters.tag))
       if (this.filters.mediaProfile && this.filters.mediaProfile.length > 0) this.filtersMode?.mediaProfile?.allOf ? conditions.push(new SearchConditionAllOfBook(this.filters.mediaProfile)) : conditions.push(new SearchConditionAnyOfBook(this.filters.mediaProfile))
+      if (this.filters.deleted && this.filters.deleted.length > 0) conditions.push(...this.filters.deleted)
       authorRoles.forEach((role: string) => {
         if (role in this.filters) {
           const authorConditions = this.filters[role].map((name: string) => {

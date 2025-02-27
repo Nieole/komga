@@ -94,6 +94,7 @@
           bottom
           right
           fixed
+          :class="individualLibrary && $vuetify.breakpoint.smAndDown ? 'mb-12' : undefined"
           @click="modalEditRecommended = true"
         >
           <v-icon>mdi-pencil</v-icon>

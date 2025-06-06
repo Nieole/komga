@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
 
-@Service
+//@Service
 class DmzjProvider(
   private val seriesMetadataRepository: SeriesMetadataRepository,
   private val bookRepository: BookRepository,

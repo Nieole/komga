@@ -26,13 +26,13 @@ import java.net.URI
 
 private val logger = KotlinLogging.logger {}
 
-@Service
+//@Service
 class BangumiProvider(
   private val seriesMetadataRepository: SeriesMetadataRepository,
   private val restClient: RestClient,
 ) : BookMetadataProvider, SeriesMetadataProvider {
 
-  @Value("\${hanlp.url}")
+  @Value("\${hanlp.url:http://127.0.0.1:8000}")
   lateinit var hanlpUrl: String
 
   val searchUrl: (String) -> String = { subject -> "https://api.bgm.tv/search/subject/$subject?type=1&responseGroup=small" }

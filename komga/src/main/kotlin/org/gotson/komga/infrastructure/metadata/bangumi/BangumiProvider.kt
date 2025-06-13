@@ -17,6 +17,8 @@ import org.gotson.komga.infrastructure.metadata.bangumi.view.SameRequest
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SameResult
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SearchResult
 import org.gotson.komga.infrastructure.metadata.bangumi.view.SubjectResult
+import org.gotson.komga.infrastructure.metadata.bangumi.view.SubjectSearchRequest
+import org.gotson.komga.infrastructure.metadata.bangumi.view.SubjectSearchResult
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
@@ -104,66 +106,117 @@ class BangumiProvider(
     logger.debug { "getSeriesMetadata $series" }
     val seriesMetadata = seriesMetadataRepository.findById(series.id)
     val seriesTitle = getSeriesTitle(seriesMetadata.title)
-    val searchUrlVal = searchUrl(seriesTitle)
-    logger.info { "searchUrl : $searchUrlVal" }
-    val searchResult =
-      restClient.get()
-        .uri(searchUrlVal)
-        .accept(MediaType.APPLICATION_JSON)
-        .retrieve()
-        .body<SearchResult>()
-    logger.debug { "searchResult: $searchResult" }
-    if (searchResult != null) {
-      val result = if (searchResult.results == 1){
-        searchResult.list.firstOrNull()
-      }else {
-        searchResult.list.firstOrNull {
-          same(it.name, seriesTitle) || same(it.name_cn, seriesTitle)
-        }
-      }
 
-      return result?.let {
-        logger.debug { "Found series $it in search result" }
-        restClient.get()
-          .uri(subjectUrl(it.id))
-          .accept(MediaType.APPLICATION_JSON)
-          .retrieve()
-          .body<SubjectResult>()
-      }
-        ?.let {
-          logger.debug { "Found subject $it in search result" }
-          return SeriesMetadataPatch(
-            title = notBlankName(it.name_cn,it.name,seriesMetadata.title),
-            status = null,
-            summary = it.summary,
-            readingDirection = SeriesMetadata.ReadingDirection.RIGHT_TO_LEFT,
-            publisher = null,
-            ageRating = null,
-            language = "zh-CN",
-            score = it.rating?.score,
-            genres =
-              it.platform?.let {
-                setOf(it)
-              },
-            totalBookCount = it.volumes ?: it.total_episodes,
-            collections = emptySet(),
-            tags =
-              it.tags?.filter { it.name != null }
-                ?.map { it.name!! }
-                ?.toSet(),
-            links =
-              listOf(
-                WebLink(
-                  label = "bangumi",
-                  url = URI("http://bgm.tv/subject/${it.id}"),
-                ),
-              ),
-            alternateTitles = null,
-          )
-        }
-    } else {
+    val subjectSearchResult = restClient.post()
+      .uri("https://api.bgm.tv/v0/search/subjects")
+      .body(SubjectSearchRequest(seriesTitle))
+      .accept(MediaType.APPLICATION_JSON)
+      .retrieve()
+      .body<SubjectSearchResult>()
+    logger.debug { "searchResult: $subjectSearchResult " }
+    if (subjectSearchResult == null) {
       return null
     }
+    val result = if (subjectSearchResult.total == 1) {
+      subjectSearchResult.date?.firstOrNull()
+    } else {
+      subjectSearchResult.date?.firstOrNull {
+        same(it.name, seriesTitle) || same(it.name_cn, seriesTitle)
+      }
+    }
+
+    return result?.let {
+      logger.debug { "Found subject $it in search result" }
+      return SeriesMetadataPatch(
+        title = notBlankName(it.name_cn, it.name, seriesMetadata.title),
+        status = null,
+        summary = it.summary,
+        readingDirection = SeriesMetadata.ReadingDirection.RIGHT_TO_LEFT,
+        publisher = null,
+        ageRating = null,
+        language = "zh-CN",
+        score = it.rating?.score,
+        genres =
+          it.platform?.let {
+            setOf(it)
+          },
+        totalBookCount = it.volumes ?: it.total_episodes,
+        collections = emptySet(),
+        tags =
+          it.tags?.filter { it.name != null }
+            ?.map { it.name!! }
+            ?.toSet(),
+        links =
+          listOf(
+            WebLink(
+              label = "bangumi",
+              url = URI("http://bgm.tv/subject/${it.id}"),
+            ),
+          ),
+        alternateTitles = null,
+      )
+    }
+
+//    val searchUrlVal = searchUrl(seriesTitle)
+//    logger.info { "searchUrl : $searchUrlVal" }
+//    val searchResult =
+//      restClient.get()
+//        .uri(searchUrlVal)
+//        .accept(MediaType.APPLICATION_JSON)
+//        .retrieve()
+//        .body<SearchResult>()
+//    logger.debug { "searchResult: $searchResult" }
+//    if (searchResult != null) {
+//      val result = if (searchResult.results == 1) {
+//        searchResult.list.firstOrNull()
+//      } else {
+//        searchResult.list.firstOrNull {
+//          same(it.name, seriesTitle) || same(it.name_cn, seriesTitle)
+//        }
+//      }
+//
+//      return result?.let {
+//        logger.debug { "Found series $it in search result" }
+//        restClient.get()
+//          .uri(subjectUrl(it.id))
+//          .accept(MediaType.APPLICATION_JSON)
+//          .retrieve()
+//          .body<SubjectResult>()
+//      }
+//        ?.let {
+//          logger.debug { "Found subject $it in search result" }
+//          return SeriesMetadataPatch(
+//            title = notBlankName(it.name_cn, it.name, seriesMetadata.title),
+//            status = null,
+//            summary = it.summary,
+//            readingDirection = SeriesMetadata.ReadingDirection.RIGHT_TO_LEFT,
+//            publisher = null,
+//            ageRating = null,
+//            language = "zh-CN",
+//            score = it.rating?.score,
+//            genres =
+//              it.platform?.let {
+//                setOf(it)
+//              },
+//            totalBookCount = it.volumes ?: it.total_episodes,
+//            collections = emptySet(),
+//            tags =
+//              it.tags?.filter { it.name != null }
+//                ?.map { it.name!! }
+//                ?.toSet(),
+//            links =
+//              listOf(
+//                WebLink(
+//                  label = "bangumi",
+//                  url = URI("http://bgm.tv/subject/${it.id}"),
+//                ),
+//              ),
+//            alternateTitles = null,
+//          )
+//        }
+//    } else {
+//      return null
+//    }
   }
 
   private fun same(

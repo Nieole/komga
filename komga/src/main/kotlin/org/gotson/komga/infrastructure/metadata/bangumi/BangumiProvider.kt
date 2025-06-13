@@ -121,7 +121,7 @@ class BangumiProvider(
       subjectSearchResult.date?.firstOrNull()
     } else {
       subjectSearchResult.date?.firstOrNull {
-        same(it.name, seriesTitle) || same(it.name_cn, seriesTitle)
+        it.platform == "漫画" && (same(it.name, seriesTitle) || same(it.name_cn, seriesTitle))
       }
     }
 

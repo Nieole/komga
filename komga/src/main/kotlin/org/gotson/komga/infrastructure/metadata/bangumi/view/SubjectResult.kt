@@ -1,9 +1,27 @@
 package org.gotson.komga.infrastructure.metadata.bangumi.view
 
+data class SubjectSearchRequest(
+  val keyword: String,
+  val filter: Filter = Filter(),
+)
+
+data class Filter(
+  val type: List<Int> = listOf(1),
+  val nsfw: Boolean = true,
+)
+
+data class SubjectSearchResult(
+  val date: List<SubjectResult>? = null,
+  val total: Int? = null,
+  val limit: Int? = null,
+  val offset: Int? = null,
+)
+
 data class SubjectResult(
-  val date: Any? = null,
+  val date: String? = null,
   val summary: String? = null,
   val images: Images? = null,
+  val image: String? = null,
   val nsfw: Boolean? = null,
   val rating: Rating? = null,
   val volumes: Int? = null,
@@ -24,6 +42,7 @@ data class SubjectResult(
 data class TagsItem(
   val name: String? = null,
   val count: Int? = null,
+  val total_cont: Int? = null,
 )
 
 data class Rating(

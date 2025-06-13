@@ -11,7 +11,7 @@ data class Filter(
 )
 
 data class SubjectSearchResult(
-  val date: List<SubjectResult>? = null,
+  val data: List<SubjectResult>? = null,
   val total: Int? = null,
   val limit: Int? = null,
   val offset: Int? = null,

@@ -118,9 +118,9 @@ class BangumiProvider(
       return null
     }
     val result = if (subjectSearchResult.total == 1) {
-      subjectSearchResult.date?.firstOrNull()
+      subjectSearchResult.data?.firstOrNull()
     } else {
-      subjectSearchResult.date?.firstOrNull {
+      subjectSearchResult.data?.firstOrNull {
         it.platform == "漫画" && (same(it.name, seriesTitle) || same(it.name_cn, seriesTitle))
       }
     }

@@ -1,3 +1,4 @@
+
 import nu.studer.gradle.jooq.JooqGenerate
 import org.apache.tools.ant.taskdefs.condition.Os
 import org.flywaydb.gradle.task.FlywayMigrateTask
@@ -155,6 +156,12 @@ tasks {
     useJUnitPlatform()
     systemProperty("spring.profiles.active", "test")
     maxHeapSize = "1G"
+  }
+
+  withType<Jar> {
+    manifest {
+      attributes("Enable-Native-Access" to "ALL-UNNAMED")
+    }
   }
 
   getByName<Jar>("jar") {

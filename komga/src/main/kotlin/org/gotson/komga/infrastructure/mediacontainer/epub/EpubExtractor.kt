@@ -33,7 +33,7 @@ class EpubExtractor(
   private val contentDetector: ContentDetector,
   private val imageAnalyzer: ImageAnalyzer,
   private val kepubConverter: KepubConverter,
-  @Value("#{@komgaProperties.epubDivinaLetterCountThreshold}") private val letterCountThreshold: Int,
+  @param:Value("#{@komgaProperties.epubDivinaLetterCountThreshold}") private val letterCountThreshold: Int,
 ) {
   /**
    * Retrieves a specific entry by name from the zip archive
@@ -60,7 +60,7 @@ class EpubExtractor(
         manifest.values.firstOrNull { it.properties.contains("cover-image") }
           ?: // EPUB 2 - get cover from meta element with name="cover"
           opfDoc
-            .selectFirst("metadata > meta[name=cover]")
+            .selectFirst("*|metadata > *|meta[name=cover]")
             ?.attr("content")
             ?.ifBlank { null }
             ?.let { manifest[it] }
@@ -84,7 +84,7 @@ class EpubExtractor(
   fun getResources(epub: EpubPackage): List<MediaFile> {
     val spine =
       epub.opfDoc
-        .select("spine > itemref")
+        .select("*|spine > *|itemref")
         .map { it.attr("idref") }
         .mapNotNull { epub.manifest[it] }
 
@@ -126,7 +126,7 @@ class EpubExtractor(
       run {
         val spine =
           epub.opfDoc
-            .select("spine > itemref")
+            .select("*|spine > *|itemref")
             .map { it.attr("idref") }
             .mapNotNull { idref -> epub.manifest[idref]?.href?.let { normalizeHref(epub.opfDir, it) } }
 
@@ -137,7 +137,7 @@ class EpubExtractor(
 
     val pagesWithImages =
       epub.opfDoc
-        .select("spine > itemref")
+        .select("*|spine > *|itemref")
         .map { it.attr("idref") }
         .mapNotNull { idref -> epub.manifest[idref]?.href?.let { normalizeHref(epub.opfDir, it) } }
         .map { pagePath ->
@@ -219,7 +219,7 @@ class EpubExtractor(
   fun computePageCount(epub: EpubPackage): Int {
     val spine =
       epub.opfDoc
-        .select("spine > itemref")
+        .select("*|spine > *|itemref")
         .map { it.attr("idref") }
         .mapNotNull { idref -> epub.manifest[idref]?.href?.let { normalizeHref(epub.opfDir, it) } }
 
@@ -230,8 +230,8 @@ class EpubExtractor(
   }
 
   fun isFixedLayout(epub: EpubPackage) =
-    epub.opfDoc.selectFirst("metadata > *|meta[property=rendition:layout]")?.text() == "pre-paginated" ||
-      epub.opfDoc.selectFirst("metadata > *|meta[name=fixed-layout]")?.attr("content") == "true"
+    epub.opfDoc.selectFirst("*|metadata > *|meta[property=rendition:layout]")?.text() == "pre-paginated" ||
+      epub.opfDoc.selectFirst("*|metadata > *|meta[name=fixed-layout]")?.attr("content") == "true"
 
   fun computePositions(
     epub: EpubPackage,
@@ -324,7 +324,7 @@ class EpubExtractor(
       file.fileName to
         doc?.select("span.koboSpan")?.mapNotNull { koboSpan ->
           val id = koboSpan.id()
-          if (!id.isNullOrBlank()) {
+          if (id.isNotBlank()) {
             // progression is built from the position in the file of each koboSpan, divided by the file size
             val progression = koboSpan.sourceRange().endPos().toFloat() / file.fileSize!!.toFloat()
             Pair(id, progression)

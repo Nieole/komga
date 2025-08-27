@@ -1,3 +1,203 @@
+# [1.23.2](https://github.com/gotson/komga/compare/1.23.1...1.23.2) (2025-08-25)
+## 🐛 Fixes
+**kobo**
+- NullPointer exception ([138c0ed](https://github.com/gotson/komga/commits/138c0ed)), closes [#2045](https://github.com/gotson/komga/issues/2045)
+
+**webui**
+- ignore content negotiation when downloading page ([85a33d4](https://github.com/gotson/komga/commits/85a33d4)), closes [#2042](https://github.com/gotson/komga/issues/2042)
+
+**unscoped**
+- ignore xml namespace in EPUB opf file ([3ab21ff](https://github.com/gotson/komga/commits/3ab21ff)), closes [#2043](https://github.com/gotson/komga/issues/2043)
+
+## 🏎 Perf
+
+- enable SQLite WAL mode by default ([e7b56b2](https://github.com/gotson/komga/commits/e7b56b2))
+
+## 🔄️ Changes
+**api**
+- mark kepubifyPath as deprecated ([d147586](https://github.com/gotson/komga/commits/d147586))
+
+**unscoped**
+- use Jsoup XmlParser instead of HTML parser where needed ([4e7c49d](https://github.com/gotson/komga/commits/4e7c49d))
+
+## 🛠  Build
+**deps**
+- move redundant versions to gradle version catalog ([18ec31f](https://github.com/gotson/komga/commits/18ec31f))
+
+## 📝 Documentation
+
+- update sponsors ([0bcf1e4](https://github.com/gotson/komga/commits/0bcf1e4))
+
+## 🌐 Translation
+**komga-tray**
+- translated using Weblate (Slovak) ([4a598e3](https://github.com/gotson/komga/commits/4a598e3))
+- translated using Weblate (Assamese) ([9ce6258](https://github.com/gotson/komga/commits/9ce6258))
+- added translation using Weblate (Slovak) ([c6a424e](https://github.com/gotson/komga/commits/c6a424e))
+- translated using Weblate (Ukrainian) ([45a105a](https://github.com/gotson/komga/commits/45a105a))
+
+**webui**
+- translated using Weblate (Slovak) ([9a6f664](https://github.com/gotson/komga/commits/9a6f664))
+- translated using Weblate (Ukrainian) ([ed271fc](https://github.com/gotson/komga/commits/ed271fc))
+
+## ⚙️ Dependencies
+**ci**
+- bump actions/checkout from 4 to 5 ([ea5a470](https://github.com/gotson/komga/commits/ea5a470))
+- bump hydraulic-software/conveyor from 18.1 to 19.0 ([a333b75](https://github.com/gotson/komga/commits/a333b75))
+
+**webui**
+- bump brace-expansion from 1.1.11 to 1.1.12 in /komga-webui ([777acbb](https://github.com/gotson/komga/commits/777acbb))
+- bump ws in /komga-webui ([30f6d3a](https://github.com/gotson/komga/commits/30f6d3a))
+
+**unscoped**
+- bump jsoup to 1.21.1 ([8b62988](https://github.com/gotson/komga/commits/8b62988))
+- bump nightcompress from 1.1.0 to 1.1.1 ([eb8a2df](https://github.com/gotson/komga/commits/eb8a2df))
+- bump ktlint from 1.6.0 to 1.7.1 ([54c818e](https://github.com/gotson/komga/commits/54c818e))
+
+# [1.23.1](https://github.com/gotson/komga/compare/1.23.0...1.23.1) (2025-08-01)
+## 🐛 Fixes
+**api**
+- reduce cache for announcements and releases to 1h ([e019f5d](https://github.com/gotson/komga/commits/e019f5d))
+
+## 🏎 Perf
+
+- separate database reads from writes ([f9d9139](https://github.com/gotson/komga/commits/f9d9139))
+- use sqlite temporary tables for long parameter list ([7464e64](https://github.com/gotson/komga/commits/7464e64))
+
+## 🔄️ Changes
+**benchmark**
+- replace deprecated methods ([9046a61](https://github.com/gotson/komga/commits/9046a61))
+
+**unscoped**
+- ktlint format ([9986f9d](https://github.com/gotson/komga/commits/9986f9d))
+- move lucene commit to separate class ([243355f](https://github.com/gotson/komga/commits/243355f))
+- replace deprecated property ([cfa3995](https://github.com/gotson/komga/commits/cfa3995))
+
+## 🧪 Tests
+
+- use synchronous lucene committer for tests ([0e52bde](https://github.com/gotson/komga/commits/0e52bde))
+- use synchronous events for tests ([a80eb59](https://github.com/gotson/komga/commits/a80eb59))
+
+## 🛠  Build
+**docker**
+- downgrade base image from ubuntu:25.04 to ubuntu:24.10 for arm64/arm64 ([ffd2d0c](https://github.com/gotson/komga/commits/ffd2d0c)), closes [#2021](https://github.com/gotson/komga/issues/2021)
+
+**webui**
+- update Browserslist db ([8c4fb26](https://github.com/gotson/komga/commits/8c4fb26))
+
+## ⚙️ Dependencies
+**komga**
+- bump spring boot to 3.5.4 ([d8d2029](https://github.com/gotson/komga/commits/d8d2029))
+- bump bestbefore-processor-kotlin to 0.2.0 ([5af98a5](https://github.com/gotson/komga/commits/5af98a5))
+- bump spring-session-caffeine to 2.1.0 ([0a0bd96](https://github.com/gotson/komga/commits/0a0bd96))
+
+**webui**
+- bump on-headers and compression in /komga-webui ([cd98fed](https://github.com/gotson/komga/commits/cd98fed))
+
+# [1.23.0](https://github.com/gotson/komga/compare/1.22.1...1.23.0) (2025-07-28)
+## 🚀 Features
+
+- check if database files are on local filesystem on startup ([93b2130](https://github.com/gotson/komga/commits/93b2130))
+
+## 🐛 Fixes
+
+- ensure tasksDB parent directory is created ([eb1e602](https://github.com/gotson/komga/commits/eb1e602))
+
+## 🔄️ Changes
+
+- ktlint format ([756d9f9](https://github.com/gotson/komga/commits/756d9f9))
+- use guard condition in when ([83a995f](https://github.com/gotson/komga/commits/83a995f))
+- remove redundant qualifier ([d82af1b](https://github.com/gotson/komga/commits/d82af1b))
+- rename unused exceptions ([5ba13d0](https://github.com/gotson/komga/commits/5ba13d0))
+- simplify condition ([b84a958](https://github.com/gotson/komga/commits/b84a958))
+- simplify regex string ([c955f2d](https://github.com/gotson/komga/commits/c955f2d))
+- remove explicit type ([65c8575](https://github.com/gotson/komga/commits/65c8575))
+- replace enum.values() with enum.entries ([03993ac](https://github.com/gotson/komga/commits/03993ac))
+- remove unused code ([b7d1824](https://github.com/gotson/komga/commits/b7d1824))
+- fix warning on startup ([209792f](https://github.com/gotson/komga/commits/209792f))
+
+## 🛠  Build
+
+- add os name to junit test report ([ba83452](https://github.com/gotson/komga/commits/ba83452))
+- publish junit test report ([8952b83](https://github.com/gotson/komga/commits/8952b83))
+
+## 🌐 Translation
+**webui**
+- translated using Weblate (Turkish) ([dc1248e](https://github.com/gotson/komga/commits/dc1248e))
+
+# [1.22.1](https://github.com/gotson/komga/compare/1.22.0...1.22.1) (2025-07-15)
+## 🐛 Fixes
+
+- don't strip accents on input data and sort series title with unicode collation ([c2c697f](https://github.com/gotson/komga/commits/c2c697f))
+- epub divina heuristic ([5f9cc44](https://github.com/gotson/komga/commits/5f9cc44)), closes [#1997](https://github.com/gotson/komga/issues/1997)
+
+## 🔄️ Changes
+**komga**
+- remove artemis cleanup ([9567df1](https://github.com/gotson/komga/commits/9567df1))
+
+**komga-tray**
+- remove deprecated methods ([d56c3e3](https://github.com/gotson/komga/commits/d56c3e3))
+
+**unscoped**
+- use interpolation prefix ([1de36b7](https://github.com/gotson/komga/commits/1de36b7))
+- add param target for some annotations to fix archunit tests ([1975ff2](https://github.com/gotson/komga/commits/1975ff2))
+- fix types for new Kotlin compiler ([34c7d8b](https://github.com/gotson/komga/commits/34c7d8b))
+- replace deprecated AntPathRequestMatcher with PathPatternRequestMatcher ([f674d65](https://github.com/gotson/komga/commits/f674d65))
+- remove unused params ([d4de08a](https://github.com/gotson/komga/commits/d4de08a))
+- use new syntax for gradle task registation ([d112e69](https://github.com/gotson/komga/commits/d112e69))
+
+## 🛠  Build
+**docker**
+- bump base image from ubuntu:24.10 to ubuntu:25.04 for amr64/arm64 ([6f951bd](https://github.com/gotson/komga/commits/6f951bd))
+
+**komga**
+- align jooq version for jooq plugin ([5f00bd5](https://github.com/gotson/komga/commits/5f00bd5))
+- add kotlin compiler parameter to remove warnings ([ce7816b](https://github.com/gotson/komga/commits/ce7816b))
+
+**webui**
+- update Browserslist db ([ddc5f72](https://github.com/gotson/komga/commits/ddc5f72))
+
+**unscoped**
+- update ktlint gradle plugin configuration ([eacf305](https://github.com/gotson/komga/commits/eacf305))
+- update build.gradle for newer Kotlin ([f2841ea](https://github.com/gotson/komga/commits/f2841ea))
+- use Java 21 ([71e8e9a](https://github.com/gotson/komga/commits/71e8e9a))
+- add enable native access attribute to jar manifest ([8602740](https://github.com/gotson/komga/commits/8602740))
+
+## 📝 Documentation
+
+- minimum Java version is 21 ([388349d](https://github.com/gotson/komga/commits/388349d))
+
+## 🌐 Translation
+**komga-tray**
+- translated using Weblate (Ukrainian) ([c960e45](https://github.com/gotson/komga/commits/c960e45))
+
+**webui**
+- translated using Weblate (Dutch) ([239be60](https://github.com/gotson/komga/commits/239be60))
+- translated using Weblate (Ukrainian) ([7873671](https://github.com/gotson/komga/commits/7873671))
+- translated using Weblate (Tamil) ([da2bf7d](https://github.com/gotson/komga/commits/da2bf7d))
+
+## ⚙️ Dependencies
+**build**
+- update Gradle to 8.14.3 ([267292d](https://github.com/gotson/komga/commits/267292d))
+- bump JReleaser from 1.10.0 to 1.19.0 ([4189833](https://github.com/gotson/komga/commits/4189833))
+- bump Gradle from 8.11.1 to 8.14.2 ([a980009](https://github.com/gotson/komga/commits/a980009))
+
+**komga**
+- bump deps ([48207cb](https://github.com/gotson/komga/commits/48207cb))
+- bump ksp plugin ([4b9a146](https://github.com/gotson/komga/commits/4b9a146))
+- bump deps ([c898906](https://github.com/gotson/komga/commits/c898906))
+- bump Gradle plugins ([e7a0a52](https://github.com/gotson/komga/commits/e7a0a52))
+- bump Spring Boot to 3.5.3 ([9ac225b](https://github.com/gotson/komga/commits/9ac225b))
+- bump icu4j from 76.1 to 77.1 ([39bc3b2](https://github.com/gotson/komga/commits/39bc3b2))
+
+**komga-tray**
+- bump Gradle plugins ([0f74e6e](https://github.com/gotson/komga/commits/0f74e6e))
+
+**unscoped**
+- bump ben-manes version plugin to 0.52.0 ([cd99019](https://github.com/gotson/komga/commits/cd99019))
+- bump ktlint to 1.6.0 ([9bc3794](https://github.com/gotson/komga/commits/9bc3794))
+- bump Kotlin to 2.2.0 ([aa80ef8](https://github.com/gotson/komga/commits/aa80ef8))
+- bump ktlint plugin to 13.0.0 ([1235220](https://github.com/gotson/komga/commits/1235220))
+
 # [1.22.0](https://github.com/gotson/komga/compare/1.21.3...1.22.0) (2025-06-23)
 ## 🚀 Features
 **api**

@@ -1,16 +1,14 @@
 package org.gotson.komga.infrastructure.jooq.main
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.gotson.komga.domain.model.SearchContext
 import org.gotson.komga.domain.model.SearchField
 import org.gotson.komga.domain.model.SeriesSearch
 import org.gotson.komga.infrastructure.datasource.SqliteUdfDataSource
 import org.gotson.komga.infrastructure.jooq.RequiredJoin
 import org.gotson.komga.infrastructure.jooq.SeriesSearchHelper
+import org.gotson.komga.infrastructure.jooq.TempTable.Companion.withTempTable
 import org.gotson.komga.infrastructure.jooq.csAlias
 import org.gotson.komga.infrastructure.jooq.inOrNoCondition
-import org.gotson.komga.infrastructure.jooq.insertTempStrings
-import org.gotson.komga.infrastructure.jooq.selectTempStrings
 import org.gotson.komga.infrastructure.jooq.sortByValues
 import org.gotson.komga.infrastructure.jooq.toSortField
 import org.gotson.komga.infrastructure.search.LuceneEntity
@@ -38,6 +36,7 @@ import org.jooq.impl.DSL.count
 import org.jooq.impl.DSL.countDistinct
 import org.jooq.impl.DSL.lower
 import org.jooq.impl.DSL.substring
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
@@ -45,10 +44,7 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Component
-import org.springframework.transaction.support.TransactionTemplate
 import java.net.URL
-
-private val logger = KotlinLogging.logger {}
 
 const val BOOKS_UNREAD_COUNT = "booksUnreadCount"
 const val BOOKS_IN_PROGRESS_COUNT = "booksInProgressCount"
@@ -56,10 +52,9 @@ const val BOOKS_READ_COUNT = "booksReadCount"
 
 @Component
 class SeriesDtoDao(
-  private val dsl: DSLContext,
+  @Qualifier("dslContextRO") private val dslRO: DSLContext,
   private val luceneHelper: LuceneHelper,
-  @Value("#{@komgaProperties.database.batchChunkSize}") private val batchSize: Int,
-  private val transactionTemplate: TransactionTemplate,
+  @param:Value("#{@komgaProperties.database.batchChunkSize}") private val batchSize: Int,
 ) : SeriesDtoRepository {
   private val s = Tables.SERIES
   private val d = Tables.SERIES_METADATA
@@ -144,7 +139,7 @@ class SeriesDtoDao(
     val searchCondition = s.ID.inOrNoCondition(seriesIds)
 
     val firstChar = lower(substring(d.TITLE_SORT, 1, 1))
-    return dsl
+    return dslRO
       .select(firstChar, count())
       .from(s)
       .leftJoin(d)
@@ -183,18 +178,18 @@ class SeriesDtoDao(
     seriesId: String,
     userId: String,
   ): SeriesDto? =
-    selectBase(userId)
+    dslRO
+      .selectBase(userId)
       .where(s.ID.eq(seriesId))
       .groupBy(*groupFields)
-      .fetchAndMap()
+      .fetchAndMap(dslRO)
       .firstOrNull()
 
-  private fun selectBase(
+  private fun DSLContext.selectBase(
     userId: String,
     joins: Set<RequiredJoin> = emptySet(),
-    joinOnCollection: Boolean = false,
   ): SelectOnConditionStep<Record> =
-    dsl
+    this
       .select(*groupFields)
       .from(s)
       .leftJoin(d)
@@ -234,7 +229,7 @@ class SeriesDtoDao(
     val searchCondition = s.ID.inOrNoCondition(seriesIds)
 
     val count =
-      dsl
+      dslRO
         .select(countDistinct(s.ID))
         .from(s)
         .leftJoin(d)
@@ -281,12 +276,13 @@ class SeriesDtoDao(
       }
 
     val dtos =
-      selectBase(userId, joins, pageable.sort.any { it.property == "collection.number" })
+      dslRO
+        .selectBase(userId, joins)
         .where(conditions)
         .and(searchCondition)
         .orderBy(orderBy)
         .apply { if (pageable.isPaged) limit(pageable.pageSize).offset(pageable.offset) }
-        .fetchAndMap()
+        .fetchAndMap(dslRO)
 
     val pageSort = if (orderBy.isNotEmpty()) pageable.sort else Sort.unsorted()
     return PageImpl(
@@ -301,7 +297,7 @@ class SeriesDtoDao(
 
   private fun readProgressConditionSeries(userId: String): Condition = rs.USER_ID.eq(userId).or(rs.USER_ID.isNull)
 
-  private fun ResultQuery<Record>.fetchAndMap(): MutableList<SeriesDto> {
+  private fun ResultQuery<Record>.fetchAndMap(dsl: DSLContext): MutableList<SeriesDto> {
     val records = fetch()
     val seriesIds = records.getValues(s.ID)
 
@@ -312,49 +308,49 @@ class SeriesDtoDao(
     lateinit var alternateTitles: Map<String, List<AlternateTitleDto>>
     lateinit var aggregatedAuthors: Map<String, List<AuthorDto>>
     lateinit var aggregatedTags: Map<String, List<String>>
-    transactionTemplate.executeWithoutResult {
-      dsl.insertTempStrings(batchSize, seriesIds)
+
+    dsl.withTempTable(batchSize, seriesIds).use { tempTable ->
       genres =
         dsl
           .selectFrom(g)
-          .where(g.SERIES_ID.`in`(dsl.selectTempStrings()))
+          .where(g.SERIES_ID.`in`(tempTable.selectTempStrings()))
           .groupBy({ it.seriesId }, { it.genre })
 
       tags =
         dsl
           .selectFrom(st)
-          .where(st.SERIES_ID.`in`(dsl.selectTempStrings()))
+          .where(st.SERIES_ID.`in`(tempTable.selectTempStrings()))
           .groupBy({ it.seriesId }, { it.tag })
 
       sharingLabels =
         dsl
           .selectFrom(sl)
-          .where(sl.SERIES_ID.`in`(dsl.selectTempStrings()))
+          .where(sl.SERIES_ID.`in`(tempTable.selectTempStrings()))
           .groupBy({ it.seriesId }, { it.label })
 
       links =
         dsl
           .selectFrom(slk)
-          .where(slk.SERIES_ID.`in`(dsl.selectTempStrings()))
+          .where(slk.SERIES_ID.`in`(tempTable.selectTempStrings()))
           .groupBy({ it.seriesId }, { WebLinkDto(it.label, it.url) })
 
       alternateTitles =
         dsl
           .selectFrom(sat)
-          .where(sat.SERIES_ID.`in`(dsl.selectTempStrings()))
+          .where(sat.SERIES_ID.`in`(tempTable.selectTempStrings()))
           .groupBy({ it.seriesId }, { AlternateTitleDto(it.label, it.title) })
 
       aggregatedAuthors =
         dsl
           .selectFrom(bmaa)
-          .where(bmaa.SERIES_ID.`in`(dsl.selectTempStrings()))
+          .where(bmaa.SERIES_ID.`in`(tempTable.selectTempStrings()))
           .filter { it.name != null }
           .groupBy({ it.seriesId }, { AuthorDto(it.name, it.role) })
 
       aggregatedTags =
         dsl
           .selectFrom(bmat)
-          .where(bmat.SERIES_ID.`in`(dsl.selectTempStrings()))
+          .where(bmat.SERIES_ID.`in`(tempTable.selectTempStrings()))
           .groupBy({ it.seriesId }, { it.tag })
     }
 

@@ -35,8 +35,8 @@ class AnnouncementController(
   private val cache =
     Caffeine
       .newBuilder()
-      .expireAfterAccess(1, TimeUnit.DAYS)
-      .build<String, JsonFeedDto>()
+      .expireAfterAccess(1, TimeUnit.HOURS)
+      .build<String, JsonFeedDto?>()
 
   @GetMapping
   @PreAuthorize("hasRole('ADMIN')")

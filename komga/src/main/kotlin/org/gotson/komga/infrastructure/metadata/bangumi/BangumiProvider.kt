@@ -1,5 +1,6 @@
 package org.gotson.komga.infrastructure.metadata.bangumi
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.gotson.komga.domain.model.Library
 import org.gotson.komga.domain.model.MetadataPatchTarget
@@ -23,9 +24,10 @@ private val logger = KotlinLogging.logger {}
 class BangumiProvider(
   private val seriesMetadataRepository: SeriesMetadataRepository,
   private val restClient: RestClient,
+  private val objectMapper: ObjectMapper,
 ) : SeriesMetadataProvider {
   override fun getSeriesMetadata(series: Series): SeriesMetadataPatch? {
-    logger.debug { "getSeriesMetadata $series" }
+    logger.info { "getSeriesMetadata by bangumi $series" }
     val seriesMetadata = seriesMetadataRepository.findById(series.id)
     val seriesTitle = getSeriesTitle(seriesMetadata.title)
 
@@ -33,11 +35,12 @@ class BangumiProvider(
       restClient
         .post()
         .uri("https://api.bgm.tv/v0/search/subjects")
-        .body(SubjectSearchRequest(seriesTitle))
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(objectMapper.writeValueAsString(SubjectSearchRequest(seriesTitle)))
         .accept(MediaType.APPLICATION_JSON)
         .retrieve()
         .body<SubjectSearchResult>()
-    logger.debug { "searchResult: $subjectSearchResult " }
+    logger.info { "searchResult: $subjectSearchResult " }
     if (subjectSearchResult == null) {
       return null
     }

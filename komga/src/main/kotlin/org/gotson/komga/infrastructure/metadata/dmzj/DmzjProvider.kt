@@ -12,8 +12,8 @@ import org.gotson.komga.domain.persistence.SeriesMetadataRepository
 import org.gotson.komga.infrastructure.jooq.main.BookMetadataDao
 import org.gotson.komga.infrastructure.metadata.SeriesMetadataProvider
 import org.gotson.komga.infrastructure.metadata.dmzj.view.DmzjComicView
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.MediaType
+import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
 
@@ -26,8 +26,7 @@ class DmzjProvider(
 ) : SeriesMetadataProvider {
   private val logger = KotlinLogging.logger {}
 
-  @Value("\${dmzj.url:http://localhost:8080}")
-  lateinit var dmzjUrl: String
+  private var dmzjUrl: String = "http://localhost:8080"
 
   override fun getSeriesMetadata(series: Series): SeriesMetadataPatch? {
     logger.debug { "getSeriesMetadata $series" }

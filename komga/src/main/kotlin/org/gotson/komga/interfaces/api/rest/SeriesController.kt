@@ -675,69 +675,68 @@ class SeriesController(
     @RequestBody
     newMetadata: SeriesMetadataUpdateDto,
     @AuthenticationPrincipal principal: KomgaPrincipal,
-  ) =
-    seriesMetadataRepository.findByIdOrNull(seriesId)?.let { existing ->
-      val updated =
-        with(newMetadata) {
-          existing.copy(
-            status = status ?: existing.status,
-            statusLock = statusLock ?: existing.statusLock,
-            title = title ?: existing.title,
-            titleLock = titleLock ?: existing.titleLock,
-            titleSort = titleSort ?: existing.titleSort,
-            titleSortLock = titleSortLock ?: existing.titleSortLock,
-            summary = summary ?: existing.summary,
-            summaryLock = summaryLock ?: existing.summaryLock,
-            language = language ?: existing.language,
-            languageLock = languageLock ?: existing.languageLock,
-            readingDirection = if (isSet("readingDirection")) readingDirection else existing.readingDirection,
-            readingDirectionLock = readingDirectionLock ?: existing.readingDirectionLock,
-            publisher = publisher ?: existing.publisher,
-            publisherLock = publisherLock ?: existing.publisherLock,
-            ageRating = if (isSet("ageRating")) ageRating else existing.ageRating,
-            ageRatingLock = ageRatingLock ?: existing.ageRatingLock,
-            genres =
-              if (isSet("genres")) {
-                if (genres != null) genres!! else emptySet()
-              } else {
-                existing.genres
-              },
-            genresLock = genresLock ?: existing.genresLock,
-            tags =
-              if (isSet("tags")) {
-                if (tags != null) tags!! else emptySet()
-              } else {
-                existing.tags
-              },
-            tagsLock = tagsLock ?: existing.tagsLock,
-            totalBookCount = if (isSet("totalBookCount")) totalBookCount else existing.totalBookCount,
-            totalBookCountLock = totalBookCountLock ?: existing.totalBookCountLock,
-            sharingLabels =
-              if (isSet("sharingLabels")) {
-                if (sharingLabels != null) sharingLabels!! else emptySet()
-              } else {
-                existing.sharingLabels
-              },
-            sharingLabelsLock = sharingLabelsLock ?: existing.sharingLabelsLock,
-            links =
-              if (isSet("links")) {
-                if (links != null) links!!.map { WebLink(it.label!!, URI(it.url!!)) } else emptyList()
-              } else {
-                existing.links
-              },
-            linksLock = linksLock ?: existing.linksLock,
-            alternateTitles =
-              if (isSet("alternateTitles")) {
-                if (alternateTitles != null) alternateTitles!!.map { AlternateTitle(it.label!!, it.title!!) } else emptyList()
-              } else {
-                existing.alternateTitles
-              },
-            alternateTitlesLock = alternateTitlesLock ?: existing.alternateTitlesLock,
-            score = score ?: existing.score,
-            scoreLock = scoreLock ?: existing.scoreLock,
-          )
-        }
-      seriesMetadataRepository.update(updated)
+  ) = seriesMetadataRepository.findByIdOrNull(seriesId)?.let { existing ->
+    val updated =
+      with(newMetadata) {
+        existing.copy(
+          status = status ?: existing.status,
+          statusLock = statusLock ?: existing.statusLock,
+          title = title ?: existing.title,
+          titleLock = titleLock ?: existing.titleLock,
+          titleSort = titleSort ?: existing.titleSort,
+          titleSortLock = titleSortLock ?: existing.titleSortLock,
+          summary = summary ?: existing.summary,
+          summaryLock = summaryLock ?: existing.summaryLock,
+          language = language ?: existing.language,
+          languageLock = languageLock ?: existing.languageLock,
+          readingDirection = if (isSet("readingDirection")) readingDirection else existing.readingDirection,
+          readingDirectionLock = readingDirectionLock ?: existing.readingDirectionLock,
+          publisher = publisher ?: existing.publisher,
+          publisherLock = publisherLock ?: existing.publisherLock,
+          ageRating = if (isSet("ageRating")) ageRating else existing.ageRating,
+          ageRatingLock = ageRatingLock ?: existing.ageRatingLock,
+          genres =
+            if (isSet("genres")) {
+              if (genres != null) genres!! else emptySet()
+            } else {
+              existing.genres
+            },
+          genresLock = genresLock ?: existing.genresLock,
+          tags =
+            if (isSet("tags")) {
+              if (tags != null) tags!! else emptySet()
+            } else {
+              existing.tags
+            },
+          tagsLock = tagsLock ?: existing.tagsLock,
+          totalBookCount = if (isSet("totalBookCount")) totalBookCount else existing.totalBookCount,
+          totalBookCountLock = totalBookCountLock ?: existing.totalBookCountLock,
+          sharingLabels =
+            if (isSet("sharingLabels")) {
+              if (sharingLabels != null) sharingLabels!! else emptySet()
+            } else {
+              existing.sharingLabels
+            },
+          sharingLabelsLock = sharingLabelsLock ?: existing.sharingLabelsLock,
+          links =
+            if (isSet("links")) {
+              if (links != null) links!!.map { WebLink(it.label!!, URI(it.url!!)) } else emptyList()
+            } else {
+              existing.links
+            },
+          linksLock = linksLock ?: existing.linksLock,
+          alternateTitles =
+            if (isSet("alternateTitles")) {
+              if (alternateTitles != null) alternateTitles!!.map { AlternateTitle(it.label!!, it.title!!) } else emptyList()
+            } else {
+              existing.alternateTitles
+            },
+          alternateTitlesLock = alternateTitlesLock ?: existing.alternateTitlesLock,
+          score = score ?: existing.score,
+          scoreLock = scoreLock ?: existing.scoreLock,
+        )
+      }
+    seriesMetadataRepository.update(updated)
 
     seriesRepository.findByIdOrNull(seriesId)?.let { eventPublisher.publishEvent(DomainEvent.SeriesUpdated(it)) }
   } ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)

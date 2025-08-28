@@ -23,31 +23,32 @@ private val logger = KotlinLogging.logger {}
 class BangumiProvider(
   private val seriesMetadataRepository: SeriesMetadataRepository,
   private val restClient: RestClient,
-) :
-  SeriesMetadataProvider {
-
+) : SeriesMetadataProvider {
   override fun getSeriesMetadata(series: Series): SeriesMetadataPatch? {
     logger.debug { "getSeriesMetadata $series" }
     val seriesMetadata = seriesMetadataRepository.findById(series.id)
     val seriesTitle = getSeriesTitle(seriesMetadata.title)
 
-    val subjectSearchResult = restClient.post()
-      .uri("https://api.bgm.tv/v0/search/subjects")
-      .body(SubjectSearchRequest(seriesTitle))
-      .accept(MediaType.APPLICATION_JSON)
-      .retrieve()
-      .body<SubjectSearchResult>()
+    val subjectSearchResult =
+      restClient
+        .post()
+        .uri("https://api.bgm.tv/v0/search/subjects")
+        .body(SubjectSearchRequest(seriesTitle))
+        .accept(MediaType.APPLICATION_JSON)
+        .retrieve()
+        .body<SubjectSearchResult>()
     logger.debug { "searchResult: $subjectSearchResult " }
     if (subjectSearchResult == null) {
       return null
     }
-    val result = if (subjectSearchResult.total == 1) {
-      subjectSearchResult.data?.firstOrNull()
-    } else {
-      subjectSearchResult.data?.firstOrNull {
-        it.platform == "漫画" && (same(it.name, seriesTitle) || same(it.name_cn, seriesTitle))
+    val result =
+      if (subjectSearchResult.total == 1) {
+        subjectSearchResult.data?.firstOrNull()
+      } else {
+        subjectSearchResult.data?.firstOrNull {
+          it.platform == "漫画" && (same(it.name, seriesTitle) || same(it.name_cn, seriesTitle))
+        }
       }
-    }
 
     return result?.let {
       logger.debug { "Found subject $it in search result" }
@@ -67,7 +68,8 @@ class BangumiProvider(
         totalBookCount = it.volumes ?: it.total_episodes,
         collections = emptySet(),
         tags =
-          it.tags?.filter { it.name != null }
+          it.tags
+            ?.filter { it.name != null }
             ?.map { it.name!! }
             ?.toSet(),
         links =
@@ -85,9 +87,7 @@ class BangumiProvider(
   private fun same(
     s1: String?,
     s2: String,
-  ): Boolean {
-    return true
-  }
+  ): Boolean = true
 
   override fun shouldLibraryHandlePatch(
     library: Library,

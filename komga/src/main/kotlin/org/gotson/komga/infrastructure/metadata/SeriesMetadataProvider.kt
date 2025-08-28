@@ -39,9 +39,9 @@ interface SeriesMetadataProvider : MetadataProvider {
     return result
   }
 
-  fun notBlankName(vararg names: String?): String{
-    for (name in names){
-      if (name?.isNotBlank() == true){
+  fun notBlankName(vararg names: String?): String {
+    for (name in names) {
+      if (name?.isNotBlank() == true) {
         return name
       }
     }

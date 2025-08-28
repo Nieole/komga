@@ -81,8 +81,7 @@ class FileSystemScanner(
                 directoryExclusions.any { exclude ->
                   it.pathString.contains(exclude, true)
                 }
-            }
-            .fold(scannedSeries) { result, path ->
+            }.fold(scannedSeries) { result, path ->
               val attrs = path.readAttributes<BasicFileAttributes>()
               var series =
                 Series(
@@ -127,12 +126,13 @@ class FileSystemScanner(
                         books.add(book)
                       }
 
-                      sidecarSeriesConsumers.firstOrNull { consumer ->
-                        consumer.getSidecarSeriesFilenames().any { file.name.equals(it, ignoreCase = true) }
-                      }?.let {
-                        val sidecar = Sidecar(file.toUri().toURL(), file.parent.toUri().toURL(), attrs.getUpdatedTime(), it.getSidecarSeriesType(), Sidecar.Source.SERIES)
-                        pathToSeriesSidecars.merge(file.parent, mutableListOf(sidecar)) { prev, one -> prev.union(one).toMutableList() }
-                      }
+                      sidecarSeriesConsumers
+                        .firstOrNull { consumer ->
+                          consumer.getSidecarSeriesFilenames().any { file.name.equals(it, ignoreCase = true) }
+                        }?.let {
+                          val sidecar = Sidecar(file.toUri().toURL(), file.parent.toUri().toURL(), attrs.getUpdatedTime(), it.getSidecarSeriesType(), Sidecar.Source.SERIES)
+                          pathToSeriesSidecars.merge(file.parent, mutableListOf(sidecar)) { prev, one -> prev.union(one).toMutableList() }
+                        }
 
                       // book sidecars can't be exactly matched during a file visit
                       // this prefilters files to reduce the candidates

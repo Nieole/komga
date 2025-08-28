@@ -6,6 +6,6 @@ enum class ImageType(
 ) {
   PNG("image/png", "PNG"),
   JPEG("image/jpeg", "JPEG"),
-  WEBP("image/webp","WEBP"),
-  AVIF("image/avif","AVIF"),
+  WEBP("image/webp", "WEBP"),
+  AVIF("image/avif", "AVIF"),
 }

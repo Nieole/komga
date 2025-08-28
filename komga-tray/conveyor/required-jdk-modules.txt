@@ -18,3 +18,5 @@ java.xml
 jdk.jfr
 jdk.management
 jdk.unsupported
+jdk.naming.dns
+jdk.crypto.ec

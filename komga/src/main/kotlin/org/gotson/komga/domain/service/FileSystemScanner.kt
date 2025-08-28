@@ -84,11 +84,14 @@ class FileSystemScanner(
             }.fold(scannedSeries) { result, path ->
               val attrs = path.readAttributes<BasicFileAttributes>()
               var series =
-                Series(
-                  name = path.name.ifBlank { path.pathString },
-                  url = path.toUri().toURL(),
-                  fileLastModified = attrs.getUpdatedTime(),
-                )
+                if (oneshotsDir?.equals(path.name) != true)
+                  Series(
+                    name = path.name.ifBlank { path.pathString },
+                    url = path.toUri().toURL(),
+                    fileLastModified = attrs.getUpdatedTime(),
+                  )
+                else
+                  null
               val books = mutableListOf<Book>()
 
               val pathToSeriesSidecars = mutableMapOf<Path, MutableList<Sidecar>>()
@@ -123,7 +126,13 @@ class FileSystemScanner(
                         !file.name.startsWith(".")
                       ) {
                         val book = pathToBook(file, attrs)
-                        books.add(book)
+                        books.add(
+                          if (oneshotsDir?.equals(file.parent.name) == true) {
+                            book.copy(oneshot = true)
+                          } else {
+                            book
+                          },
+                        )
                       }
 
                       sidecarSeriesConsumers
@@ -169,16 +178,18 @@ class FileSystemScanner(
                               fileLastModified = book.fileLastModified,
                               oneshot = true,
                             )
-                          scannedSeries[onesSeries] = listOf(book.copy(oneshot = true))
+                          scannedSeries[onesSeries] = listOf(book)
                         }
                       } else {
                         series =
                           if (forceDirectoryModifiedTime)
-                            tempSeries.copy(fileLastModified = maxOf(tempSeries.fileLastModified, books.maxOf { it.fileLastModified }))
+                            tempSeries?.copy(fileLastModified = maxOf(tempSeries.fileLastModified, books.maxOf { it.fileLastModified }))
                           else
                             tempSeries
 
-                        scannedSeries[series] = books
+                        series?.let {
+                          scannedSeries[it] = books
+                        }
 
                         // only add series sidecars if series has books
                         pathToSeriesSidecars[dir]?.let { scannedSidecars.addAll(it) }
@@ -204,7 +215,11 @@ class FileSystemScanner(
                   }
                 },
               )
-              result[series] = books
+              series?.let {
+                if (books.isNotEmpty()) {
+                  result[it] = books.filter { it.oneshot == false }
+                }
+              }
               result
             }
       }

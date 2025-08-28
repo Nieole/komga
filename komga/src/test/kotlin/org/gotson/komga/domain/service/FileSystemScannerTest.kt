@@ -52,9 +52,11 @@ class FileSystemScannerTest {
       // given
       val root = fs.getPath("/root")
       Files.createDirectory(root)
+      val seriesPath = fs.getPath("/root/series")
+      Files.createDirectory(seriesPath)
 
       val files = listOf("file1.cbz", "file2.cbz")
-      files.forEach { Files.createFile(root.resolve(it)) }
+      files.forEach { Files.createFile(seriesPath.resolve(it)) }
 
       // when
       val scan = scanner.scanRootFolder(root).series
@@ -73,9 +75,11 @@ class FileSystemScannerTest {
     Jimfs.newFileSystem(Configuration.unix()).use { fs ->
       // given
       val root = fs.getPath("/")
+      val seriesPath = fs.getPath("/series")
+      Files.createDirectory(seriesPath)
 
       val files = listOf("file1.cbz", "file2.cbz")
-      files.forEach { Files.createFile(root.resolve(it)) }
+      files.forEach { Files.createFile(seriesPath.resolve(it)) }
 
       // when
       val scan = scanner.scanRootFolder(root).series
@@ -84,7 +88,7 @@ class FileSystemScannerTest {
 
       // then
       assertThat(scan).hasSize(1)
-      assertThat(series.name).isEqualTo("/")
+      assertThat(series.name).isEqualTo("series")
       assertThat(books).hasSize(2)
       assertThat(books.map { it.name }).containsExactlyInAnyOrderElementsOf(files.map { FilenameUtils.removeExtension(it) })
     }
@@ -96,9 +100,11 @@ class FileSystemScannerTest {
       // given
       val root = fs.getPath("/root")
       Files.createDirectory(root)
+      val seriesPath = fs.getPath("/root/series")
+      Files.createDirectory(seriesPath)
 
       val files = listOf("file1.cbz", "file2.txt", "file3")
-      files.forEach { Files.createFile(root.resolve(it)) }
+      files.forEach { Files.createFile(seriesPath.resolve(it)) }
 
       // when
       val scan = scanner.scanRootFolder(root).series
@@ -125,8 +131,10 @@ class FileSystemScannerTest {
       // given
       val root = fs.getPath("/root")
       Files.createDirectory(root)
+      val seriesPath = fs.getPath("/root/series")
+      Files.createDirectory(seriesPath)
 
-      sourceFiles.forEach { Files.createFile(root.resolve(it)) }
+      sourceFiles.forEach { Files.createFile(seriesPath.resolve(it)) }
 
       // when
       val scan = scanner.scanRootFolder(root, scanCbx = scanCbz, scanPdf = scanPdf, scanEpub = scanEpub).series
@@ -294,9 +302,9 @@ class FileSystemScannerTest {
       val scan = scanner.scanRootFolder(root, directoryExclusions = setOf("#recycle")).series
 
       // then
-      assertThat(scan).hasSize(2)
+      assertThat(scan).hasSize(1)
 
-      assertThat(scan.keys.map { it.name }).containsExactlyInAnyOrder("dir1", "subdir1")
+      assertThat(scan.keys.map { it.name }).containsExactlyInAnyOrder("dir1")
       assertThat(scan.values.flatMap { list -> list.map { it.name } }).containsExactlyInAnyOrder("comic", "comic2")
     }
   }
@@ -317,9 +325,9 @@ class FileSystemScannerTest {
       val scan = scanner.scanRootFolder(root).series
 
       // then
-      assertThat(scan).hasSize(2)
+      assertThat(scan).hasSize(1)
 
-      assertThat(scan.keys.map { it.name }).containsExactlyInAnyOrder("dir1", "subdir1")
+      assertThat(scan.keys.map { it.name }).containsExactlyInAnyOrder("dir1")
       assertThat(scan.values.flatMap { list -> list.map { it.name } }).containsExactlyInAnyOrder("comic", "comic2")
     }
   }
@@ -338,9 +346,9 @@ class FileSystemScannerTest {
       val scan = scanner.scanRootFolder(root).series
 
       // then
-      assertThat(scan).hasSize(2)
+      assertThat(scan).hasSize(1)
 
-      assertThat(scan.keys.map { it.name }).containsExactlyInAnyOrder("dir1", "subdir1")
+      assertThat(scan.keys.map { it.name }).containsExactlyInAnyOrder("dir1")
       assertThat(scan.values.flatMap { list -> list.map { it.name } }).containsExactlyInAnyOrder("comic", "comic2")
     }
   }

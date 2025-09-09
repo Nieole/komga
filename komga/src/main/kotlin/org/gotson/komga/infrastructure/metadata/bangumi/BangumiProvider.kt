@@ -56,7 +56,7 @@ class BangumiProvider(
     return result?.let {
       logger.debug { "Found subject $it in search result" }
       return SeriesMetadataPatch(
-        title = notBlankName(it.name_cn, it.name, seriesMetadata.title),
+//        title = notBlankName(it.name_cn, it.name, seriesMetadata.title),
         status = null,
         summary = it.summary,
         readingDirection = SeriesMetadata.ReadingDirection.RIGHT_TO_LEFT,

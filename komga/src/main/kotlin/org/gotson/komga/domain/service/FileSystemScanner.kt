@@ -216,9 +216,7 @@ class FileSystemScanner(
                 },
               )
               series?.let {
-//                if (books.isNotEmpty()) {
                 result[it] = books.filter { it.oneshot == false }
-//                }
               }
               result
             }
